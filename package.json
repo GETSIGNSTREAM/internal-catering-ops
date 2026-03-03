@@ -9,15 +9,19 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.98.0",
     "bcryptjs": "^3.0.3",
     "drizzle-orm": "^0.45.1",
     "framer-motion": "^12.34.4",
+    "googleapis": "^171.4.0",
     "lucide-react": "^0.576.0",
     "next": "14.2.35",
     "next-auth": "^4.24.13",
+    "pdf-parse": "^2.4.5",
     "postgres": "^3.4.8",
     "react": "^18",
     "react-dom": "^18",
+    "web-push": "^3.6.7",
     "zod": "^4.3.6"
   },
   "devDependencies": {
@@ -25,6 +29,7 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@types/web-push": "^3.6.4",
     "drizzle-kit": "^0.31.9",
     "eslint": "^8",
     "eslint-config-next": "14.2.35",
