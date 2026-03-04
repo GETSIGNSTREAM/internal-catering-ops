@@ -14,6 +14,8 @@
     "drizzle-orm": "^0.45.1",
     "framer-motion": "^12.34.4",
     "googleapis": "^171.4.0",
+    "i18next": "^25.8.13",
+    "i18next-browser-languagedetector": "^8.2.1",
     "lucide-react": "^0.576.0",
     "next": "14.2.35",
     "next-auth": "^4.24.13",
@@ -21,6 +23,7 @@
     "postgres": "^3.4.8",
     "react": "^18",
     "react-dom": "^18",
+    "react-i18next": "^16.5.4",
     "web-push": "^3.6.7",
     "zod": "^4.3.6"
   },

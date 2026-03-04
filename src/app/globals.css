@@ -1,3 +1,39 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  @apply bg-dark-900 text-white font-sans;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.01em;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  @apply font-semibold tracking-tight;
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 20px);
+}
+
+.status-new { @apply bg-blue-500; }
+.status-prep { @apply bg-yellow-500; }
+.status-ready { @apply bg-green-500; }
+.status-delivered { @apply bg-gray-500; }
+
+.skeleton {
+  @apply bg-gradient-to-r from-dark-700 via-dark-600 to-dark-700 bg-[length:200%_100%] animate-shimmer rounded;
+}
+
+.card-premium {
+  @apply bg-dark-700 rounded-2xl shadow-card border border-white/5 transition-all duration-200;
+}
+
+.card-premium:hover {
+  @apply shadow-card-hover border-white/10;
+}
