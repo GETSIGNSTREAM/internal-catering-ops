@@ -1,8 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { users } from "@/lib/schema";
-import { eq } from "drizzle-orm";
-import bcrypt from "bcryptjs";
+import postgres from "postgres";
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -16,6 +13,7 @@ export async function GET(req: Request) {
       NEXTAUTH_SECRET: !!process.env.NEXTAUTH_SECRET,
       NEXTAUTH_URL: !!process.env.NEXTAUTH_URL,
       DATABASE_URL: !!process.env.DATABASE_URL,
+      DATABASE_URL_PREFIX: process.env.DATABASE_URL?.substring(0, 40) + "...",
       SUPABASE_URL: !!process.env.SUPABASE_URL,
       SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
     },
@@ -23,41 +21,14 @@ export async function GET(req: Request) {
 
   if (debug === "auth") {
     try {
-      const allUsers = await db
-        .select({
-          id: users.id,
-          username: users.username,
-          passwordLength: users.password,
-          name: users.name,
-          role: users.role,
-        })
-        .from(users);
-
-      base.users = allUsers.map((u) => ({
-        id: u.id,
-        username: u.username,
-        name: u.name,
-        role: u.role,
-        passwordLength: u.passwordLength?.length ?? 0,
-        passwordPrefix: u.passwordLength?.substring(0, 7) ?? "null",
-      }));
-
-      // Test bcrypt compare for user hello@eatwildbird.com
-      const [testUser] = await db
-        .select()
-        .from(users)
-        .where(eq(users.username, "hello@eatwildbird.com"));
-      if (testUser) {
-        const match = await bcrypt.compare("O10az212", testUser.password);
-        base.bcryptTest = {
-          username: testUser.username,
-          passwordStored: testUser.password.substring(0, 20) + "...",
-          fullLength: testUser.password.length,
-          matchResult: match,
-        };
-      }
+      const sql = postgres(process.env.DATABASE_URL!, { prepare: false });
+      const result = await sql`SELECT id, username, name, role, length(password) as pw_len FROM "CA_users" ORDER BY id`;
+      base.users = result;
+      await sql.end();
     } catch (err: any) {
       base.dbError = err.message;
+      base.dbErrorCode = err.code;
+      base.dbErrorFull = String(err);
     }
   }
 
