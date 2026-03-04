@@ -99,7 +99,7 @@ export default function DashboardPage() {
           </div>
           <div className="flex items-center gap-3">
             <span className="text-sm text-gray-400">{session?.user?.name}</span>
-            <button onClick={() => signOut()} className="text-gray-400 hover:text-white text-sm">
+            <button onClick={() => signOut({ callbackUrl: "/login" })} className="text-gray-400 hover:text-white text-sm">
               {t('common.logout')}
             </button>
           </div>

@@ -166,7 +166,7 @@ export default function OrdersPage() {
           </div>
           <div className="flex items-center gap-3">
             <span className="text-sm text-gray-400">{user?.name}</span>
-            <button onClick={() => signOut()} className="text-gray-400 hover:text-white text-sm">{t("common.logout")}</button>
+            <button onClick={() => signOut({ callbackUrl: "/login" })} className="text-gray-400 hover:text-white text-sm">{t("common.logout")}</button>
           </div>
         </div>
 
