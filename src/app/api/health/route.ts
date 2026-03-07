@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { orders } from "@/lib/schema";
 import { count, desc } from "drizzle-orm";
-import { sql } from "drizzle-orm";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   let dbStatus = "unknown";
