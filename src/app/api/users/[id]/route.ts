@@ -46,7 +46,7 @@ export async function PATCH(
 
     // Handle role update
     if (body.role !== undefined) {
-      if (!["admin", "gm"].includes(body.role)) {
+      if (!["admin", "gm", "driver"].includes(body.role)) {
         return NextResponse.json({ error: "Invalid role" }, { status: 400 });
       }
       updateData.role = body.role;
@@ -74,9 +74,18 @@ export async function PATCH(
     }
 
     // Sync changes to Supabase Auth
-    if (Object.keys(supabaseUpdates).length > 0 && existingUser.supabaseUid) {
+    if (existingUser.supabaseUid) {
       const supabaseAdmin = getAdminClient();
-      await supabaseAdmin.auth.admin.updateUserById(existingUser.supabaseUid, supabaseUpdates);
+      // Sync email/password if changed
+      if (Object.keys(supabaseUpdates).length > 0) {
+        await supabaseAdmin.auth.admin.updateUserById(existingUser.supabaseUid, supabaseUpdates);
+      }
+      // Sync role to app_metadata (used by middleware for JWT-based role checks)
+      if (updateData.role) {
+        await supabaseAdmin.auth.admin.updateUserById(existingUser.supabaseUid, {
+          app_metadata: { role: updateData.role },
+        });
+      }
     }
 
     const updated = await storage.updateUser(id, updateData);

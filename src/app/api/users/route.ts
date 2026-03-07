@@ -97,6 +97,12 @@ export async function POST(request: NextRequest) {
       supabaseUid = authUser.user.id;
     }
 
+    // Set role in Supabase app_metadata so middleware can read from JWT
+    const finalRole = role ?? "gm";
+    await supabaseAdmin.auth.admin.updateUserById(supabaseUid, {
+      app_metadata: { role: finalRole },
+    });
+
     // Create CA_users record with Supabase UID
     const user = await storage.createUser({
       username: email,
@@ -104,7 +110,7 @@ export async function POST(request: NextRequest) {
       email,
       supabaseUid,
       name,
-      role: role ?? "gm",
+      role: finalRole,
       storeId: storeId ?? null,
     });
 

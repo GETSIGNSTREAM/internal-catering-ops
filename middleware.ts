@@ -40,22 +40,11 @@ export async function middleware(request: NextRequest) {
     pathname === "/" || pathname === "/orders" || pathname === "/driver";
 
   if (needsRoleCheck) {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/CA_users?supabase_uid=eq.${user.id}&select=role`,
-      {
-        headers: {
-          apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
-          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
-        },
-        cache: "no-store",
-      },
-    );
-    const rows = await res.json();
-    const dbRole = rows?.[0]?.role;
+    // Read role from Supabase app_metadata (embedded in JWT — no DB query needed)
+    const dbRole = user.app_metadata?.role as string | undefined;
 
-    // If no CA_users record found for this Supabase UID, log and treat as unauthenticated
     if (!dbRole) {
-      console.warn(`[Middleware] No CA_users record found for supabase_uid=${user.id} (email: ${user.email})`);
+      console.warn(`[Middleware] No role in app_metadata for user=${user.id} (email: ${user.email})`);
     }
 
     // Check for admin view-as override (only honored for actual admins)
