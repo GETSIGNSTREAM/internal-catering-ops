@@ -77,9 +77,11 @@ export default function LiveDriverMap({
 
     let map: any;
 
-    import("mapbox-gl").then((mapboxgl) => {
+    import("mapbox-gl").then((mod) => {
       if (!mapContainerRef.current) return;
 
+      // Handle both ESM default export and CommonJS patterns
+      const mapboxgl = mod.default || mod;
       (mapboxgl as any).accessToken = token;
 
       map = new mapboxgl.Map({
@@ -118,7 +120,8 @@ export default function LiveDriverMap({
   useEffect(() => {
     if (!mapLoaded || !mapRef.current || !driverLocation) return;
 
-    import("mapbox-gl").then((mapboxgl) => {
+    import("mapbox-gl").then((mod) => {
+      const mapboxgl = mod.default || mod;
       const map = mapRef.current;
       if (!map) return;
 
@@ -139,7 +142,7 @@ export default function LiveDriverMap({
         el.innerHTML = `
           <div style="position:relative;width:24px;height:24px;">
             <div style="position:absolute;inset:0;background:#f59e0b;border-radius:50%;opacity:0.3;animation:ping 1.5s cubic-bezier(0,0,0.2,1) infinite;"></div>
-            <div style="position:absolute;inset:4px;background:#f59e0b;border:2px solid white;border-radius:50;box-shadow:0 0 6px rgba(245,158,11,0.6);"></div>
+            <div style="position:absolute;inset:4px;background:#f59e0b;border:2px solid white;border-radius:50%;box-shadow:0 0 6px rgba(245,158,11,0.6);"></div>
           </div>
           <style>@keyframes ping{75%,100%{transform:scale(2);opacity:0}}</style>
         `;
@@ -150,7 +153,7 @@ export default function LiveDriverMap({
           el.style.transform = `rotate(${driverLocation.heading}deg)`;
         }
 
-        const marker = new mapboxgl.Marker({ element: el, anchor: "center" })
+        const marker = new (mapboxgl as any).Marker({ element: el, anchor: "center" })
           .setLngLat(lngLat)
           .addTo(map);
 
@@ -160,7 +163,7 @@ export default function LiveDriverMap({
       // Only follow driver if destination is not visible or no initial fit done
       if (!initialFitDoneRef.current && destination) {
         // Fit to show both driver and destination
-        const bounds = new mapboxgl.LngLatBounds();
+        const bounds = new (mapboxgl as any).LngLatBounds();
         bounds.extend(lngLat);
         bounds.extend([destination.longitude, destination.latitude]);
         map.fitBounds(bounds, { padding: 60, maxZoom: 15, duration: 1000 });
@@ -179,7 +182,8 @@ export default function LiveDriverMap({
   useEffect(() => {
     if (!mapLoaded || !mapRef.current || !destination || !showDestination) return;
 
-    import("mapbox-gl").then((mapboxgl) => {
+    import("mapbox-gl").then((mod) => {
+      const mapboxgl = mod.default || mod;
       const map = mapRef.current;
       if (!map) return;
 
@@ -197,7 +201,7 @@ export default function LiveDriverMap({
         el.style.width = "20px";
         el.style.height = "28px";
 
-        const marker = new mapboxgl.Marker({ element: el, anchor: "bottom" })
+        const marker = new (mapboxgl as any).Marker({ element: el, anchor: "bottom" })
           .setLngLat([destination.longitude, destination.latitude])
           .addTo(map);
 
@@ -206,7 +210,7 @@ export default function LiveDriverMap({
 
       // If we have both, fit bounds
       if (driverLocation && !initialFitDoneRef.current) {
-        const bounds = new mapboxgl.LngLatBounds();
+        const bounds = new (mapboxgl as any).LngLatBounds();
         bounds.extend([driverLocation.longitude, driverLocation.latitude]);
         bounds.extend([destination.longitude, destination.latitude]);
         map.fitBounds(bounds, { padding: 60, maxZoom: 15, duration: 1000 });
