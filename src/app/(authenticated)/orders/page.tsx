@@ -62,7 +62,7 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [totalOrders, setTotalOrders] = useState(0);
-  const [dateFilter, setDateFilter] = useState<string>("today");
+  const [dateFilter, setDateFilter] = useState<string>("week");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [locationFilter, setLocationFilter] = useState<string>("all");
   const [stores, setStores] = useState<Store[]>([]);
@@ -184,9 +184,9 @@ export default function OrdersPage() {
   }, [dateFilter, statusFilter, locationFilter, effectiveRole]);
 
   const dateFilters = [
+    { value: "week", label: "This Week" },
     { value: "today", label: t("orders.today") },
     { value: "tomorrow", label: t("orders.tomorrow") },
-    { value: "week", label: "This Week" },
     { value: "all", label: t("orders.allDates") },
   ];
 
@@ -251,8 +251,8 @@ export default function OrdersPage() {
           ) : orders.length === 0 ? (
             <EmptyState
               type="orders"
-              title={dateFilter === "today" && statusFilter === "all" ? t("orders.noOrdersToday") : t("orders.noOrders")}
-              message={dateFilter === "today" && statusFilter === "all" ? t("orders.noOrdersTodayMessage") : t("orders.noOrdersFilterMessage")}
+              title={dateFilter === "today" ? t("orders.noOrdersToday") : dateFilter === "week" ? "No orders this week" : t("orders.noOrders")}
+              message={dateFilter === "all" ? t("orders.noOrdersFilterMessage") : "Try changing the date filter or selecting 'All Dates'"}
               action={{ label: t("orders.createOrder"), onClick: () => setShowCreateModal(true) }}
             />
           ) : (
