@@ -20,13 +20,22 @@ interface Order {
   items: { name: string; quantity: number }[];
   pickupTime?: string;
   deliveryTime?: string;
+  readyTime?: string;
   status: string;
   prepStatus?: string;
   deliveryMode?: string;
   orderSource?: string;
   totalAmount?: number;
   createdAt?: string;
-  store?: { id: number; name: string };
+  storeName?: string;
+  assignedDriver?: string;
+  customerPhone?: string;
+  deliveryAddress?: string;
+  numberOfGuests?: number;
+  notes?: string;
+  trackingMilestone?: string;
+  pdfUrl?: string;
+  labelsUrl?: string;
 }
 
 interface Store {
