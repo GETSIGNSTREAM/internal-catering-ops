@@ -64,8 +64,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create Supabase Auth user (magic-link only — random password since they'll use OTP)
+    // Create or find Supabase Auth user (magic-link only — random password since they'll use OTP)
     const supabaseAdmin = getAdminClient();
+    let supabaseUid: string;
+
     const randomPassword = crypto.randomBytes(32).toString("hex");
     const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
@@ -74,10 +76,25 @@ export async function POST(request: NextRequest) {
     });
 
     if (authError) {
-      return NextResponse.json(
-        { error: `Failed to create auth user: ${authError.message}` },
-        { status: 400 }
-      );
+      // If user already exists in Supabase Auth, look them up and use their existing UID
+      if (authError.message?.includes("already been registered") || authError.status === 422) {
+        const { data: listData } = await supabaseAdmin.auth.admin.listUsers();
+        const existingAuthUser = listData?.users?.find((u) => u.email === email);
+        if (!existingAuthUser) {
+          return NextResponse.json(
+            { error: `Auth user exists but could not be found: ${authError.message}` },
+            { status: 400 }
+          );
+        }
+        supabaseUid = existingAuthUser.id;
+      } else {
+        return NextResponse.json(
+          { error: `Failed to create auth user: ${authError.message}` },
+          { status: 400 }
+        );
+      }
+    } else {
+      supabaseUid = authUser.user.id;
     }
 
     // Create CA_users record with Supabase UID
@@ -85,7 +102,7 @@ export async function POST(request: NextRequest) {
       username: email,
       password: "magic-link-auth",
       email,
-      supabaseUid: authUser.user.id,
+      supabaseUid,
       name,
       role: role ?? "gm",
       storeId: storeId ?? null,

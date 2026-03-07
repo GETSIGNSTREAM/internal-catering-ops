@@ -53,6 +53,11 @@ export async function middleware(request: NextRequest) {
     const rows = await res.json();
     const dbRole = rows?.[0]?.role;
 
+    // If no CA_users record found for this Supabase UID, log and treat as unauthenticated
+    if (!dbRole) {
+      console.warn(`[Middleware] No CA_users record found for supabase_uid=${user.id} (email: ${user.email})`);
+    }
+
     // Check for admin view-as override (only honored for actual admins)
     const viewAsCookie = request.cookies.get("viewAsRole")?.value;
     const effectiveRole = (dbRole === "admin" && viewAsCookie) ? viewAsCookie : dbRole;
