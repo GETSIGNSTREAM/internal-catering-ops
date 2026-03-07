@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import StatusPill from "@/components/ui/StatusPill";
 import EditOrderModal from "@/components/orders/EditOrderModal";
+import LiveDriverMap from "@/components/ui/LiveDriverMap";
+import { useDriverLocation } from "@/hooks/useDriverLocation";
 import { formatDateTimePST, getPSTTimezoneLabel } from "@/utils/timezone";
 
 interface OrderItem {
@@ -79,6 +81,14 @@ export default function OrderDetailPage() {
   const [advancingMilestone, setAdvancingMilestone] = useState(false);
   const isDriver = user?.role === "driver";
   const isAdmin = user?.role === "admin";
+
+  // Live driver location for map
+  const driverLocation = useDriverLocation({
+    driverId: order?.assignedDriverId ?? null,
+    enabled: order?.deliveryMode === "delivery" &&
+      ["en_route", "arriving"].includes(order?.trackingMilestone ?? ""),
+    pollInterval: 10000,
+  });
 
   // Unified stages — kitchen prep + delivery in one flow
   const kitchenStages = [
@@ -675,6 +685,22 @@ export default function OrderDetailPage() {
             </div>
           )}
         </section>
+
+        {/* Live Driver Map */}
+        {driverLocation && order.deliveryMode === "delivery" && order.assignedDriverId && (
+          <section className="bg-dark-700 rounded-xl p-4">
+            <h2 className="text-sm font-semibold text-gray-400 mb-3 flex items-center gap-2">
+              <MapPin size={16} /> Driver Location
+            </h2>
+            <LiveDriverMap
+              driverLocation={driverLocation}
+              deliveryAddress={order.deliveryAddress}
+              showDestination={true}
+              height="200px"
+              className="rounded-xl overflow-hidden"
+            />
+          </section>
+        )}
 
         <section className="bg-dark-700 rounded-xl p-4">
           <h2 className="text-sm font-semibold text-gray-400 mb-3 flex items-center gap-2">

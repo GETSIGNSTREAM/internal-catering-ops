@@ -7,6 +7,7 @@ import {
   CheckCircle, Flame, Package, Truck, MapPin, PartyPopper,
   Phone, Clock, Users, ChefHat, MapPinned
 } from "lucide-react";
+import LiveDriverMap from "@/components/ui/LiveDriverMap";
 
 interface TrackingData {
   orderNumber: string | null;
@@ -269,6 +270,22 @@ export default function TrackingPage() {
                 </a>
               )}
             </div>
+          </motion.section>
+        )}
+
+        {/* Live Driver Map */}
+        {data.driverLocation && data.deliveryMode === "delivery" && (
+          <motion.section
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <LiveDriverMap
+              driverLocation={data.driverLocation}
+              deliveryAddress={data.deliveryAddress}
+              showDestination={true}
+              height="240px"
+              className="rounded-2xl overflow-hidden border border-[#333]"
+            />
           </motion.section>
         )}
 

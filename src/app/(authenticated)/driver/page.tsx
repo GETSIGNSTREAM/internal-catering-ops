@@ -12,6 +12,7 @@ import { formatDateTimePST } from "@/utils/timezone";
 import { PageTransition } from "@/components/ui/PageTransition";
 import { OrderListSkeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
+import LiveDriverMap from "@/components/ui/LiveDriverMap";
 
 interface OrderItem {
   name: string;
@@ -103,6 +104,7 @@ export default function DriverPage() {
   const locationIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastLocationRef = useRef<{ lat: number; lng: number } | null>(null);
   const [copied, setCopied] = useState<number | null>(null);
+  const [driverMapLocation, setDriverMapLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -183,6 +185,7 @@ export default function DriverPage() {
         locationIntervalRef.current = null;
       }
       lastLocationRef.current = null;
+      setDriverMapLocation(null);
       setSharingLocation(false);
       setLocationError("");
       return;
@@ -199,10 +202,12 @@ export default function DriverPage() {
 
     watchIdRef.current = navigator.geolocation.watchPosition(
       (position) => {
-        lastLocationRef.current = {
+        const loc = {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         };
+        lastLocationRef.current = loc;
+        setDriverMapLocation(loc);
       },
       (err) => {
         setLocationError("Location access denied");
@@ -295,6 +300,33 @@ export default function DriverPage() {
           <p className="text-red-400 text-xs mt-1">{locationError}</p>
         )}
       </header>
+
+      {/* Driver Map — shows when GPS is active and there's an active delivery */}
+      {(() => {
+        const activeDelivery = orders.find(
+          (o) => getCurrentStage(o) === "en_route" || getCurrentStage(o) === "arriving"
+        );
+        if (sharingLocation && driverMapLocation && activeDelivery?.deliveryAddress) {
+          return (
+            <div className="px-4 pt-4">
+              <LiveDriverMap
+                driverLocation={{
+                  latitude: driverMapLocation.lat,
+                  longitude: driverMapLocation.lng,
+                  heading: null,
+                  speed: null,
+                  recordedAt: new Date().toISOString(),
+                }}
+                deliveryAddress={activeDelivery.deliveryAddress}
+                showDestination={true}
+                height="200px"
+                className="rounded-xl overflow-hidden border border-dark-600"
+              />
+            </div>
+          );
+        }
+        return null;
+      })()}
 
       {/* Content */}
       <main className="px-4 py-4 space-y-3">
