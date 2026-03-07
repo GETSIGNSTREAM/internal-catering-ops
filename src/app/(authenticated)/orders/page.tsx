@@ -95,9 +95,19 @@ export default function OrdersPage() {
     [user?.role, dateFilter, statusFilter, isAdmin, locationFilter]
   );
 
-  const fetchOrders = async () => {
+  // Sync from Neon (Replit) in the background — runs once per page load
+  const syncFromNeon = async () => {
+    try {
+      await fetch("/api/sync/neon");
+    } catch {
+      // Silent fail — sync is best-effort
+    }
+  };
+
+  const fetchOrders = async (shouldSync = false) => {
     try {
       setLoading(true);
+      if (shouldSync) await syncFromNeon();
       const params = buildParams(0);
       const res = await fetch(`/api/orders?${params}`);
       const data = await res.json();
@@ -137,8 +147,16 @@ export default function OrdersPage() {
     avgTicket: orders.length > 0 ? orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0) / orders.length : 0,
   };
 
+  // Sync from Neon on initial load, then just fetch on filter changes
+  const [hasSynced, setHasSynced] = useState(false);
+
   useEffect(() => {
-    fetchOrders();
+    if (!hasSynced) {
+      setHasSynced(true);
+      fetchOrders(true); // sync + fetch on first load
+    } else {
+      fetchOrders(false); // just fetch on filter changes
+    }
   }, [dateFilter, statusFilter, locationFilter]);
 
   const dateFilters = [
