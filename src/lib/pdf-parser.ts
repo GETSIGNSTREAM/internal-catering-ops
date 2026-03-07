@@ -1,38 +1,4 @@
-// Polyfill DOMMatrix for serverless environments (Vercel) where canvas APIs don't exist
-if (typeof globalThis.DOMMatrix === "undefined") {
-  class DOMMatrixPolyfill {
-    a = 1; b = 0; c = 0; d = 1; e = 0; f = 0;
-    m11 = 1; m12 = 0; m13 = 0; m14 = 0;
-    m21 = 0; m22 = 1; m23 = 0; m24 = 0;
-    m31 = 0; m32 = 0; m33 = 1; m34 = 0;
-    m41 = 0; m42 = 0; m43 = 0; m44 = 1;
-    is2D = true; isIdentity = true;
-    constructor(_init?: string | number[]) {}
-    inverse() { return new DOMMatrixPolyfill(); }
-    multiply() { return new DOMMatrixPolyfill(); }
-    translate() { return new DOMMatrixPolyfill(); }
-    scale() { return new DOMMatrixPolyfill(); }
-    rotate() { return new DOMMatrixPolyfill(); }
-    transformPoint(p: any = {}) { return { x: p.x || 0, y: p.y || 0, z: p.z || 0, w: p.w || 1 }; }
-    toFloat32Array() { return new Float32Array(16); }
-    toFloat64Array() { return new Float64Array(16); }
-    toString() { return "matrix(1, 0, 0, 1, 0, 0)"; }
-    static fromMatrix() { return new DOMMatrixPolyfill(); }
-    static fromFloat32Array() { return new DOMMatrixPolyfill(); }
-    static fromFloat64Array() { return new DOMMatrixPolyfill(); }
-  }
-  (globalThis as any).DOMMatrix = DOMMatrixPolyfill;
-}
-
-// Dynamic import for serverless compatibility
-let pdfParse: ((buffer: Buffer) => Promise<{ text: string }>) | null = null;
-
-async function getPdfParse() {
-  if (pdfParse) return pdfParse;
-  const mod: any = await import("pdf-parse");
-  pdfParse = typeof mod.default === "function" ? mod.default : mod;
-  return pdfParse;
-}
+import { extractText } from "unpdf";
 
 function sanitizeText(text: string | undefined): string | undefined {
   if (!text) return text;
@@ -557,13 +523,8 @@ function parseGenericFormat(text: string): ParsedOrderData {
 }
 
 export async function parsePdf(buffer: Buffer): Promise<ParsedOrderData> {
-  const parse = await getPdfParse();
-  const parsePromise = parse!(buffer);
-  const timeoutPromise = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error("PDF parsing timed out after 10 seconds")), 10000)
-  );
-  const result = await Promise.race([parsePromise, timeoutPromise]);
-  const text = result.text;
+  const { text: extractedText } = await extractText(new Uint8Array(buffer), { mergePages: true });
+  const text = extractedText;
   const { format, orderSource } = detectFormat(text);
   let parsed: ParsedOrderData;
   switch (format) {
