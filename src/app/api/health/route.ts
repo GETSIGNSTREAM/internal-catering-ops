@@ -7,7 +7,7 @@ export async function GET() {
   let dbStatus = "unknown";
   let orderCount = 0;
   let dbError = "";
-  let envInfo = {
+  const envInfo = {
     hasDatabaseUrl: !!process.env.DATABASE_URL,
     hasPostgresUrl: !!process.env.POSTGRES_URL,
     hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
