@@ -99,11 +99,8 @@ export default function OrdersPage() {
     try {
       setLoading(true);
       const params = buildParams(0);
-      console.log("[OrdersPage] Fetching:", `/api/orders?${params}`);
       const res = await fetch(`/api/orders?${params}`);
-      console.log("[OrdersPage] Response status:", res.status);
       const data = await res.json();
-      console.log("[OrdersPage] Response data:", JSON.stringify(data).slice(0, 500));
       if (Array.isArray(data)) {
         setOrders(data);
         setTotalOrders(data.length);
@@ -111,8 +108,8 @@ export default function OrdersPage() {
         setOrders(data.orders || []);
         setTotalOrders(data.total || 0);
       }
-    } catch (err) {
-      console.error("[OrdersPage] Failed to fetch orders:", err);
+    } catch {
+      console.error("Failed to fetch orders");
     } finally {
       setLoading(false);
     }
