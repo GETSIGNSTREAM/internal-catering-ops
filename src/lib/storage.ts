@@ -189,11 +189,29 @@ export class DatabaseStorage implements IStorage {
     if (filters?.dateTo) {
       conditions.push(lte(orders.createdAt, filters.dateTo));
     }
-    if (filters?.fulfillmentDateFrom) {
-      conditions.push(sql`COALESCE(${orders.deliveryTime}, ${orders.pickupTime}) >= ${filters.fulfillmentDateFrom}`);
-    }
-    if (filters?.fulfillmentDateTo) {
-      conditions.push(sql`COALESCE(${orders.deliveryTime}, ${orders.pickupTime}) < ${filters.fulfillmentDateTo}`);
+    if (filters?.fulfillmentDateFrom && filters?.fulfillmentDateTo) {
+      // Use OR on both date columns to match orders with either delivery or pickup in range
+      // (Avoids COALESCE + Date param issue with postgres.js prepare:false)
+      conditions.push(
+        or(
+          and(gte(orders.deliveryTime, filters.fulfillmentDateFrom), lt(orders.deliveryTime, filters.fulfillmentDateTo)),
+          and(gte(orders.pickupTime, filters.fulfillmentDateFrom), lt(orders.pickupTime, filters.fulfillmentDateTo)),
+        )
+      );
+    } else if (filters?.fulfillmentDateFrom) {
+      conditions.push(
+        or(
+          gte(orders.deliveryTime, filters.fulfillmentDateFrom),
+          gte(orders.pickupTime, filters.fulfillmentDateFrom),
+        )
+      );
+    } else if (filters?.fulfillmentDateTo) {
+      conditions.push(
+        or(
+          lt(orders.deliveryTime, filters.fulfillmentDateTo),
+          lt(orders.pickupTime, filters.fulfillmentDateTo),
+        )
+      );
     }
     if (filters?.search) {
       const searchTerm = `%${filters.search}%`;
