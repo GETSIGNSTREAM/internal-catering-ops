@@ -10,9 +10,9 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageTransition } from "@/components/ui/PageTransition";
 
 interface User {
-  id: number;
+  id: string;
   name: string;
-  username: string;
+  email: string;
   role: string;
   storeId?: number | null;
   storeName?: string | null;
@@ -31,7 +31,7 @@ export default function TeamPage() {
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [formName, setFormName] = useState("");
   const [formEmail, setFormEmail] = useState("");
   const [formRole, setFormRole] = useState("gm");
@@ -137,7 +137,7 @@ export default function TeamPage() {
     try {
       const payload: any = {
         name: formName,
-        username: formEmail,
+        email: formEmail,
         role: formRole,
         storeId: formRole === "admin" ? null : formStoreId,
       };
@@ -162,7 +162,7 @@ export default function TeamPage() {
     }
   };
 
-  const handleDeleteUser = async (userId: number) => {
+  const handleDeleteUser = async (userId: string) => {
     try {
       const res = await fetch(`/api/users/${userId}`, {
         method: "DELETE",
@@ -183,7 +183,7 @@ export default function TeamPage() {
   const startEdit = (member: User) => {
     setEditingUser(member);
     setFormName(member.name);
-    setFormEmail(member.username);
+    setFormEmail(member.email);
     setFormRole(member.role);
     setFormStoreId(member.storeId || null);
     setShowAddForm(false);
@@ -358,7 +358,7 @@ export default function TeamPage() {
                           {member.name}
                         </h3>
                         <p className="text-sm text-gray-400">
-                          @{member.username}
+                          {member.email}
                         </p>
                         {member.storeName && (
                           <p className="text-sm text-gray-500 mt-1 flex items-center gap-1">
@@ -373,7 +373,7 @@ export default function TeamPage() {
                           {member.role === "gm" ? "GM" : member.role}
                         </span>
                         {user?.role === "admin" &&
-                          String(member.id) !== user.id && (
+                          member.id !== user.id && (
                             <div className="flex gap-2 ml-2">
                               <button
                                 onClick={() => startEdit(member)}

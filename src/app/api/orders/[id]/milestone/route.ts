@@ -73,7 +73,7 @@ export async function POST(
 
     // Drivers can only update orders assigned to them
     if (auth.session.user.role === "driver") {
-      if (order.assignedDriverId !== parseInt(auth.session.user.id, 10)) {
+      if (order.assignedDriverId !== auth.session.user.id) {
         return NextResponse.json({ error: "Not assigned to this order" }, { status: 403 });
       }
     }
@@ -122,7 +122,7 @@ export async function POST(
     const historyEntry = await storage.createTrackingHistory({
       orderId,
       milestone: historyMilestone,
-      triggeredBy: parseInt(auth.session.user.id, 10),
+      triggeredBy: auth.session.user.id,
       notes: notes || null,
     });
 

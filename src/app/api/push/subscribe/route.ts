@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const userId = parseInt(auth.session.user.id, 10);
+    const userId = auth.session.user.id;
 
     const saved = await storage.createPushSubscription({
       userId,

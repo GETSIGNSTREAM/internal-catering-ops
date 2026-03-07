@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { storage } from "@/lib/storage";
 import { TRACKING_MILESTONES } from "@/lib/schema";
+import { getAuthUserById } from "@/lib/supabase/users";
 
 /**
  * GET /api/track/[trackingId]
@@ -31,10 +32,9 @@ export async function GET(
     let driverName: string | null = null;
     let driverPhone: string | null = null;
     if (order.assignedDriverId) {
-      const driver = await storage.getUser(order.assignedDriverId);
+      const driver = await getAuthUserById(order.assignedDriverId);
       if (driver) {
         driverName = driver.name;
-        // driver phone would come from their profile — for now use assignedDriver text
         driverPhone = null;
       }
     }

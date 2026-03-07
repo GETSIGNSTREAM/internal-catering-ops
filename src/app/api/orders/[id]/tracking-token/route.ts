@@ -46,7 +46,7 @@ export async function POST(
     await storage.createTrackingHistory({
       orderId,
       milestone: "confirmed",
-      triggeredBy: parseInt(auth.session.user.id, 10),
+      triggeredBy: auth.session.user.id,
     });
 
     return NextResponse.json({

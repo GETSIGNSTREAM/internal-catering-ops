@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { storage } from "@/lib/storage";
 import { CreateUserSchema } from "@/lib/validations";
-import { getAdminClient } from "@/lib/supabase/admin";
-import crypto from "crypto";
+import { listAuthUsers, createAuthUser } from "@/lib/supabase/users";
 
 export async function GET(request: NextRequest) {
   const auth = await requireAdmin();
@@ -13,9 +12,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const roleFilter = searchParams.get("role");
 
-    let allUsers = await storage.getUsers();
+    let allUsers = await listAuthUsers();
 
-    // Filter by role if specified (e.g., ?role=driver)
     if (roleFilter) {
       allUsers = allUsers.filter((u) => u.role === roleFilter);
     }
@@ -25,7 +23,6 @@ export async function GET(request: NextRequest) {
 
     const usersWithStores = allUsers.map((u) => ({
       id: u.id,
-      username: u.username,
       email: u.email,
       name: u.name,
       role: u.role,
@@ -56,7 +53,6 @@ export async function POST(request: NextRequest) {
 
     const { email, name, role, storeId } = parsed.data;
 
-    // Non-admin/non-driver users must have a storeId
     if (role !== "admin" && role !== "driver" && !storeId) {
       return NextResponse.json(
         { error: "Store assignment is required for GM users" },
@@ -64,62 +60,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create or find Supabase Auth user (magic-link only — random password since they'll use OTP)
-    const supabaseAdmin = getAdminClient();
-    let supabaseUid: string;
-
-    const randomPassword = crypto.randomBytes(32).toString("hex");
-    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
+    const user = await createAuthUser({
       email,
-      password: randomPassword,
-      email_confirm: true,
-    });
-
-    if (authError) {
-      // If user already exists in Supabase Auth, look them up and use their existing UID
-      if (authError.message?.includes("already been registered") || authError.status === 422) {
-        const { data: listData } = await supabaseAdmin.auth.admin.listUsers();
-        const existingAuthUser = listData?.users?.find((u) => u.email === email);
-        if (!existingAuthUser) {
-          return NextResponse.json(
-            { error: `Auth user exists but could not be found: ${authError.message}` },
-            { status: 400 }
-          );
-        }
-        supabaseUid = existingAuthUser.id;
-      } else {
-        return NextResponse.json(
-          { error: `Failed to create auth user: ${authError.message}` },
-          { status: 400 }
-        );
-      }
-    } else {
-      supabaseUid = authUser.user.id;
-    }
-
-    // Set role in Supabase app_metadata so middleware can read from JWT
-    const finalRole = role ?? "gm";
-    await supabaseAdmin.auth.admin.updateUserById(supabaseUid, {
-      app_metadata: { role: finalRole },
-    });
-
-    // Create CA_users record with Supabase UID
-    const user = await storage.createUser({
-      username: email,
-      password: "magic-link-auth",
-      email,
-      supabaseUid,
       name,
-      role: finalRole,
+      role: role ?? "gm",
       storeId: storeId ?? null,
     });
 
     return NextResponse.json(
-      { id: user.id, username: user.username, email: user.email, name: user.name, role: user.role, storeId: user.storeId },
+      { id: user.id, email: user.email, name: user.name, role: user.role, storeId: user.storeId },
       { status: 201 }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating user:", error);
-    return NextResponse.json({ error: "Failed to create user" }, { status: 500 });
+    return NextResponse.json(
+      { error: error.message || "Failed to create user" },
+      { status: 500 }
+    );
   }
 }

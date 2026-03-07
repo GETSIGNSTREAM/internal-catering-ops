@@ -1,18 +1,11 @@
-import { createServerAuthClient } from "@/lib/supabase/server-auth";
-import { storage } from "@/lib/storage";
+import { requireAdmin } from "@/lib/auth-helpers";
 import { NextRequest, NextResponse } from "next/server";
 
 const VALID_ROLES = ["admin", "gm", "driver"];
 
 export async function POST(request: NextRequest) {
-  const supabase = await createServerAuthClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const caUser = await storage.getUserBySupabaseUid(user.id);
-  if (!caUser || caUser.role !== "admin") {
-    return NextResponse.json({ error: "Admin only" }, { status: 403 });
-  }
+  const auth = await requireAdmin();
+  if ("error" in auth) return auth.error;
 
   const body = await request.json();
   const { role, storeId } = body;

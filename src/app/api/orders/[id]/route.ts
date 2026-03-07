@@ -26,7 +26,7 @@ export async function GET(
     const effectiveRole = auth.session.user.effectiveRole;
     if (effectiveRole === "driver") {
       // Drivers can only see orders assigned to them
-      if (order.assignedDriverId !== parseInt(auth.session.user.id, 10)) {
+      if (order.assignedDriverId !== auth.session.user.id) {
         return NextResponse.json({ error: "Access denied" }, { status: 403 });
       }
     } else if (effectiveRole !== "admin") {
@@ -71,7 +71,7 @@ export async function PATCH(
     // Check access using effectiveRole (respects viewAs)
     const effectiveRole = auth.session.user.effectiveRole;
     if (effectiveRole === "driver") {
-      if (existingOrder.assignedDriverId !== parseInt(auth.session.user.id, 10)) {
+      if (existingOrder.assignedDriverId !== auth.session.user.id) {
         return NextResponse.json({ error: "Access denied" }, { status: 403 });
       }
     } else if (effectiveRole !== "admin") {

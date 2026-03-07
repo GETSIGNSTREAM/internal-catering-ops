@@ -63,7 +63,7 @@ export async function POST(
       await storage.updateOrderChecklist(photoTask.id, {
         completed: true,
         completedAt: completedAt,
-        completedBy: parseInt(session!.user.id),
+        completedBy: session!.user.id,
       });
     }
 

@@ -1,7 +1,7 @@
 import {
-  users, stores, orders, orderChecklists, pushSubscriptions, appSettings,
+  stores, orders, orderChecklists, pushSubscriptions, appSettings,
   trackingHistory, driverLocations,
-  type User, type InsertUser, type Store, type InsertStore,
+  type Store, type InsertStore,
   type Order, type InsertOrder, type OrderChecklist, type InsertOrderChecklist,
   type PushSubscription, type InsertPushSubscription,
   type TrackingHistory, type InsertTrackingHistory,
@@ -11,14 +11,6 @@ import { db } from "./db";
 import { eq, desc, and, gte, lte, lt, sql, count, or, asc } from "drizzle-orm";
 
 export interface IStorage {
-  getUser(id: number): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  getUserBySupabaseUid(uid: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
-  updateUser(id: number, data: Partial<InsertUser>): Promise<User | undefined>;
-  deleteUser(id: number): Promise<boolean>;
-  getUsers(): Promise<User[]>;
-
   getStore(id: number): Promise<Store | undefined>;
   getStores(): Promise<Store[]>;
   createStore(store: InsertStore): Promise<Store>;
@@ -38,7 +30,7 @@ export interface IStorage {
   getOrderStats(storeId?: number): Promise<OrderStats>;
 
   getPushSubscriptions(): Promise<PushSubscription[]>;
-  getPushSubscriptionsByUserId(userId: number): Promise<PushSubscription[]>;
+  getPushSubscriptionsByUserId(userId: string): Promise<PushSubscription[]>;
   createPushSubscription(subscription: InsertPushSubscription): Promise<PushSubscription>;
   deletePushSubscription(endpoint: string): Promise<void>;
 
@@ -49,15 +41,15 @@ export interface IStorage {
   getOrderByTrackingToken(token: string): Promise<Order | undefined>;
   getTrackingHistory(orderId: number): Promise<TrackingHistory[]>;
   createTrackingHistory(entry: InsertTrackingHistory): Promise<TrackingHistory>;
-  getDriverOrders(driverId: number): Promise<Order[]>;
+  getDriverOrders(driverId: string): Promise<Order[]>;
   createDriverLocation(location: InsertDriverLocation): Promise<DriverLocation>;
-  getLatestDriverLocation(driverId: number): Promise<DriverLocation | undefined>;
+  getLatestDriverLocation(driverId: string): Promise<DriverLocation | undefined>;
 }
 
 export interface OrderFilters {
   status?: string;
   storeId?: number;
-  driverId?: number;
+  driverId?: string;
   deliveryMode?: string;
   dateFrom?: Date;
   dateTo?: Date;
@@ -105,40 +97,6 @@ export interface StorePerformance {
 }
 
 export class DatabaseStorage implements IStorage {
-  async getUser(id: number): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user || undefined;
-  }
-
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
-    return user || undefined;
-  }
-
-  async getUserBySupabaseUid(uid: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.supabaseUid, uid));
-    return user || undefined;
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(insertUser).returning();
-    return user;
-  }
-
-  async updateUser(id: number, data: Partial<InsertUser>): Promise<User | undefined> {
-    const [user] = await db.update(users).set(data).where(eq(users.id, id)).returning();
-    return user || undefined;
-  }
-
-  async deleteUser(id: number): Promise<boolean> {
-    const result = await db.delete(users).where(eq(users.id, id)).returning();
-    return result.length > 0;
-  }
-
-  async getUsers(): Promise<User[]> {
-    return db.select().from(users);
-  }
-
   async getStore(id: number): Promise<Store | undefined> {
     const [store] = await db.select().from(stores).where(eq(stores.id, id));
     return store || undefined;
@@ -454,7 +412,7 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(pushSubscriptions);
   }
 
-  async getPushSubscriptionsByUserId(userId: number): Promise<PushSubscription[]> {
+  async getPushSubscriptionsByUserId(userId: string): Promise<PushSubscription[]> {
     return db.select().from(pushSubscriptions).where(eq(pushSubscriptions.userId, userId));
   }
 
@@ -553,7 +511,7 @@ export class DatabaseStorage implements IStorage {
     return record;
   }
 
-  async getDriverOrders(driverId: number): Promise<Order[]> {
+  async getDriverOrders(driverId: string): Promise<Order[]> {
     return db.select().from(orders)
       .where(
         and(
@@ -573,7 +531,7 @@ export class DatabaseStorage implements IStorage {
     return record;
   }
 
-  async getLatestDriverLocation(driverId: number): Promise<DriverLocation | undefined> {
+  async getLatestDriverLocation(driverId: string): Promise<DriverLocation | undefined> {
     const [loc] = await db.select().from(driverLocations)
       .where(eq(driverLocations.driverId, driverId))
       .orderBy(desc(driverLocations.recordedAt))

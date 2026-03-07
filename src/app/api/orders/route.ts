@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
 
     if (effectiveRole === "driver") {
       // Drivers see only orders assigned to them
-      filters.driverId = parseInt(auth.session.user.id, 10);
+      filters.driverId = auth.session.user.id;
     } else if (effectiveRole !== "admin") {
       // GMs see only orders assigned to their store
       // storeId already reflects viewAsStoreId for admins in GM mode
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
     await storage.createTrackingHistory({
       orderId: order.id,
       milestone: "confirmed",
-      triggeredBy: parseInt(auth.session.user.id, 10),
+      triggeredBy: auth.session.user.id,
     });
 
     // Create checklist tasks for this order

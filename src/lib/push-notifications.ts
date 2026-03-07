@@ -37,7 +37,7 @@ export async function sendPushNotification(
   title: string,
   body: string,
   url?: string,
-  userId?: number
+  userId?: string
 ): Promise<void> {
   if (!initializeVapid()) {
     return;

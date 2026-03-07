@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "latitude and longitude are required" }, { status: 400 });
     }
 
-    const driverId = parseInt(auth.session.user.id, 10);
+    const driverId = auth.session.user.id;
 
     const location = await storage.createDriverLocation({
       driverId,
@@ -52,14 +52,14 @@ export async function GET(request: NextRequest) {
   if ("error" in auth) return auth.error;
 
   try {
-    let driverId: number;
+    let driverId: string;
 
     if (auth.session.user.role === "admin" || auth.session.user.effectiveRole === "admin") {
       const { searchParams } = new URL(request.url);
       const paramId = searchParams.get("driverId");
-      driverId = paramId ? parseInt(paramId, 10) : parseInt(auth.session.user.id, 10);
+      driverId = paramId || auth.session.user.id;
     } else {
-      driverId = parseInt(auth.session.user.id, 10);
+      driverId = auth.session.user.id;
     }
 
     const location = await storage.getLatestDriverLocation(driverId);
