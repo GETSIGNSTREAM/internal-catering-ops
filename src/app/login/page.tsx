@@ -10,39 +10,14 @@ function LoginForm() {
   const errorParam = searchParams.get("error");
 
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState(
     errorParam === "auth_failed" ? "Authentication failed. Please try again." : "",
   );
   const [loading, setLoading] = useState(false);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
 
-  const handlePasswordLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    setLoading(true);
-
-    try {
-      const supabase = createAuthClient();
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (signInError) {
-        setError(signInError.message);
-      } else {
-        router.push("/orders");
-        router.refresh();
-      }
-    } catch {
-      setError("An error occurred");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleMagicLink = async () => {
     if (!email) {
       setError("Please enter your email");
       return;
@@ -79,36 +54,29 @@ function LoginForm() {
         </div>
         <h2 className="text-xl font-semibold text-white">Check your email</h2>
         <p className="text-gray-400 text-sm">
-          We sent a magic link to <span className="text-white">{email}</span>
+          We sent a sign-in link to <span className="text-white font-medium">{email}</span>
         </p>
+        <p className="text-gray-500 text-xs">Click the link in your email to sign in. It may take a moment to arrive.</p>
         <button
-          onClick={() => setMagicLinkSent(false)}
+          onClick={() => { setMagicLinkSent(false); setError(""); }}
           className="text-chicken-primary text-sm hover:underline"
         >
-          Back to sign in
+          Use a different email
         </button>
       </div>
     );
   }
 
   return (
-    <form onSubmit={handlePasswordLogin} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4">
       <input
         type="email"
-        placeholder="Email"
+        placeholder="Enter your email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        className="w-full bg-dark-700 text-white px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-chicken-primary"
+        className="w-full bg-dark-700 text-white px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-chicken-primary text-center"
         required
-      />
-
-      <input
-        type="password"
-        placeholder="Password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        className="w-full bg-dark-700 text-white px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-chicken-primary"
-        required
+        autoFocus
       />
 
       {error && (
@@ -120,26 +88,12 @@ function LoginForm() {
         disabled={loading}
         className="w-full bg-chicken-primary text-dark-900 font-semibold py-3 rounded-xl hover:bg-chicken-secondary transition-colors disabled:opacity-50"
       >
-        {loading ? "Please wait..." : "Sign In"}
+        {loading ? "Sending link..." : "Send Sign-In Link"}
       </button>
 
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-dark-600" />
-        </div>
-        <div className="relative flex justify-center text-sm">
-          <span className="px-2 bg-dark-900 text-gray-500">or</span>
-        </div>
-      </div>
-
-      <button
-        type="button"
-        onClick={handleMagicLink}
-        disabled={loading}
-        className="w-full bg-dark-700 text-white font-medium py-3 rounded-xl hover:bg-dark-600 transition-colors disabled:opacity-50"
-      >
-        Send Magic Link
-      </button>
+      <p className="text-gray-500 text-xs text-center">
+        We&apos;ll email you a magic link for passwordless sign-in.
+      </p>
     </form>
   );
 }
@@ -149,9 +103,11 @@ export default function LoginPage() {
     <div className="min-h-screen bg-dark-900 flex flex-col items-center justify-center px-6">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 mx-auto mb-4 bg-dark-700 rounded-2xl flex items-center justify-center text-3xl">
-            🐔
-          </div>
+          <img
+            src="/icons/wildbird-logo.png"
+            alt="WILDBIRD"
+            className="w-20 h-20 mx-auto mb-4 rounded-2xl"
+          />
           <h1 className="text-2xl font-bold text-white">WILDBIRD</h1>
           <p className="text-gray-400 text-sm">Catering Operations</p>
         </div>

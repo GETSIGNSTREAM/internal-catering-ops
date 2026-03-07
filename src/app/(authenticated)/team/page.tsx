@@ -34,7 +34,6 @@ export default function TeamPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [formName, setFormName] = useState("");
   const [formEmail, setFormEmail] = useState("");
-  const [formPassword, setFormPassword] = useState("");
   const [formRole, setFormRole] = useState("gm");
   const [formStoreId, setFormStoreId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
@@ -74,7 +73,6 @@ export default function TeamPage() {
   const resetForm = () => {
     setFormName("");
     setFormEmail("");
-    setFormPassword("");
     setFormRole("gm");
     setFormStoreId(null);
     setShowAddForm(false);
@@ -84,8 +82,8 @@ export default function TeamPage() {
 
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formName.trim() || !formEmail.trim() || !formPassword.trim()) {
-      setError("Name, email, and password are required");
+    if (!formName.trim() || !formEmail.trim()) {
+      setError("Name and email are required");
       return;
     }
 
@@ -103,7 +101,6 @@ export default function TeamPage() {
         body: JSON.stringify({
           name: formName,
           email: formEmail,
-          password: formPassword,
           role: formRole,
           storeId: formRole === "admin" ? null : formStoreId,
         }),
@@ -144,10 +141,6 @@ export default function TeamPage() {
         role: formRole,
         storeId: formRole === "admin" ? null : formStoreId,
       };
-
-      if (formPassword.trim()) {
-        payload.password = formPassword;
-      }
 
       const res = await fetch(`/api/users/${editingUser.id}`, {
         method: "PATCH",
@@ -191,7 +184,6 @@ export default function TeamPage() {
     setEditingUser(member);
     setFormName(member.name);
     setFormEmail(member.username);
-    setFormPassword("");
     setFormRole(member.role);
     setFormStoreId(member.storeId || null);
     setShowAddForm(false);
@@ -270,18 +262,6 @@ export default function TeamPage() {
               onChange={(e) => setFormEmail(e.target.value)}
               className="w-full bg-dark-600 text-white rounded-lg px-3 py-2 mb-3"
               required
-            />
-            <input
-              type="password"
-              placeholder={
-                editingUser
-                  ? "New password (leave blank to keep current)"
-                  : "Password"
-              }
-              value={formPassword}
-              onChange={(e) => setFormPassword(e.target.value)}
-              className="w-full bg-dark-600 text-white rounded-lg px-3 py-2 mb-3"
-              required={!editingUser}
             />
             <select
               value={formRole}

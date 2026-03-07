@@ -37,7 +37,7 @@ export const UpdateOrderSchema = CreateOrderSchema.partial();
 
 export const CreateUserSchema = z.object({
   email: z.string().email("Valid email is required").max(100),
-  password: z.string().min(6, "Password must be at least 6 characters").max(100),
+  password: z.string().min(6).max(100).optional(),
   name: z.string().min(1, "Name is required").max(100),
   role: z.enum(["admin", "gm", "driver"]).default("gm"),
   storeId: z.number().int().positive().optional().nullable(),

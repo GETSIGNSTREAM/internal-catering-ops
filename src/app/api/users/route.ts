@@ -3,7 +3,7 @@ import { requireAdmin } from "@/lib/auth-helpers";
 import { storage } from "@/lib/storage";
 import { CreateUserSchema } from "@/lib/validations";
 import { getAdminClient } from "@/lib/supabase/admin";
-import bcrypt from "bcryptjs";
+import crypto from "crypto";
 
 export async function GET(request: NextRequest) {
   const auth = await requireAdmin();
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { email, password, name, role, storeId } = parsed.data;
+    const { email, name, role, storeId } = parsed.data;
 
     // Non-admin/non-driver users must have a storeId
     if (role !== "admin" && role !== "driver" && !storeId) {
@@ -64,11 +64,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create Supabase Auth user
+    // Create Supabase Auth user (magic-link only — random password since they'll use OTP)
     const supabaseAdmin = getAdminClient();
+    const randomPassword = crypto.randomBytes(32).toString("hex");
     const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
-      password,
+      password: randomPassword,
       email_confirm: true,
     });
 
@@ -80,10 +81,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Create CA_users record with Supabase UID
-    const hashedPassword = await bcrypt.hash(password, 12);
     const user = await storage.createUser({
       username: email,
-      password: hashedPassword,
+      password: "magic-link-auth",
       email,
       supabaseUid: authUser.user.id,
       name,
