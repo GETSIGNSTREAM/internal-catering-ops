@@ -5,14 +5,22 @@ import { CreateUserSchema } from "@/lib/validations";
 import { getAdminClient } from "@/lib/supabase/admin";
 import bcrypt from "bcryptjs";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const auth = await requireAdmin();
   if ("error" in auth) return auth.error;
 
   try {
-    const allUsers = await storage.getUsers();
-    const allStores = await storage.getStores();
+    const { searchParams } = new URL(request.url);
+    const roleFilter = searchParams.get("role");
 
+    let allUsers = await storage.getUsers();
+
+    // Filter by role if specified (e.g., ?role=driver)
+    if (roleFilter) {
+      allUsers = allUsers.filter((u) => u.role === roleFilter);
+    }
+
+    const allStores = await storage.getStores();
     const storeMap = new Map(allStores.map((s) => [s.id, s.name]));
 
     const usersWithStores = allUsers.map((u) => ({
@@ -48,10 +56,10 @@ export async function POST(request: NextRequest) {
 
     const { email, password, name, role, storeId } = parsed.data;
 
-    // Non-admin users must have a storeId
-    if (role !== "admin" && !storeId) {
+    // Non-admin/non-driver users must have a storeId
+    if (role !== "admin" && role !== "driver" && !storeId) {
       return NextResponse.json(
-        { error: "Store assignment is required for non-admin users" },
+        { error: "Store assignment is required for GM users" },
         { status: 400 }
       );
     }

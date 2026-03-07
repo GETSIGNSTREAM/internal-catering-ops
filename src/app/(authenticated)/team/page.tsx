@@ -290,9 +290,10 @@ export default function TeamPage() {
             >
               <option value="gm">General Manager</option>
               <option value="admin">Admin</option>
+              <option value="driver">Driver</option>
             </select>
 
-            {formRole !== "admin" && (
+            {formRole !== "admin" && formRole !== "driver" && (
               <select
                 value={formStoreId || ""}
                 onChange={(e) =>

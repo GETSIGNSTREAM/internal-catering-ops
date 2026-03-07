@@ -41,6 +41,7 @@ interface Order {
   labelsUrl?: string;
   assignedStoreId?: number;
   assignedDriver?: string;
+  assignedDriverId?: number;
   photoProofUrl?: string;
   completedAt?: string;
 }
@@ -70,6 +71,9 @@ export default function EditOrderModal({ order, onClose, onUpdated }: EditOrderM
   const [pdfUrl, setPdfUrl] = useState(order.pdfUrl || "");
   const [labelsUrl, setLabelsUrl] = useState(order.labelsUrl || "");
   const [assignedStoreId, setAssignedStoreId] = useState<number | null>(order.assignedStoreId || null);
+  const [assignedDriver, setAssignedDriver] = useState(order.assignedDriver || "");
+  const [assignedDriverId, setAssignedDriverId] = useState<number | null>(order.assignedDriverId || null);
+  const [driverUsers, setDriverUsers] = useState<{ id: number; name: string }[]>([]);
   const [stores, setStores] = useState<StoreItem[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadingLabels, setUploadingLabels] = useState(false);
@@ -80,6 +84,7 @@ export default function EditOrderModal({ order, onClose, onUpdated }: EditOrderM
 
   useEffect(() => {
     fetch("/api/stores").then((res) => res.json()).then((data) => setStores(data)).catch(() => {});
+    fetch("/api/drivers").then((r) => r.json()).then((data) => { if (Array.isArray(data)) setDriverUsers(data); }).catch(() => {});
   }, []);
 
   const orderSources = ["eatwildbird.com", "ezcater", "foodja", "catercow", "sharebite", "zerocater", "relish"];
@@ -151,7 +156,10 @@ export default function EditOrderModal({ order, onClose, onUpdated }: EditOrderM
           orderSource: orderSource || null, utensilsRequested,
           numberOfGuests: numberOfGuests ? parseInt(numberOfGuests) : null,
           pdfUrl: pdfUrl || null, labelsUrl: labelsUrl || null,
-          assignedStoreId: assignedStoreId || null, status, prepStatus,
+          assignedStoreId: assignedStoreId || null,
+          assignedDriver: assignedDriver || null,
+          assignedDriverId: assignedDriverId || null,
+          status, prepStatus,
         }),
       });
       if (res.ok) { const updatedOrder = await res.json(); onUpdated(updatedOrder); }
@@ -227,7 +235,27 @@ export default function EditOrderModal({ order, onClose, onUpdated }: EditOrderM
           </div>
 
           {deliveryMode === "delivery" && (
-            <div><label className="block text-sm text-gray-400 mb-1">Delivery Address</label><input type="text" value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} className="w-full bg-dark-700 text-white px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-chicken-primary" /></div>
+            <>
+              <div><label className="block text-sm text-gray-400 mb-1">Delivery Address</label><input type="text" value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} className="w-full bg-dark-700 text-white px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-chicken-primary" /></div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Assign Driver</label>
+                <select
+                  value={assignedDriverId || ""}
+                  onChange={(e) => {
+                    const id = e.target.value ? parseInt(e.target.value) : null;
+                    setAssignedDriverId(id);
+                    const driver = driverUsers.find((d) => d.id === id);
+                    setAssignedDriver(driver?.name || "");
+                  }}
+                  className="w-full bg-dark-700 text-white px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-chicken-primary"
+                >
+                  <option value="">Select driver...</option>
+                  {driverUsers.map((driver) => (
+                    <option key={driver.id} value={driver.id}>{driver.name}</option>
+                  ))}
+                </select>
+              </div>
+            </>
           )}
 
           <div>

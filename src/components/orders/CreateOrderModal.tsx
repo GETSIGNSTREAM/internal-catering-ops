@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { FileText, Store, Truck } from "lucide-react";
 import { toDatetimeLocalPST, fromDatetimeLocalToPST, getPSTTimezoneLabel } from "@/utils/timezone";
@@ -45,10 +45,10 @@ export default function CreateOrderModal({ onClose, onCreated, isAdmin = false }
   const [pickupTime, setPickupTime] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [assignedDriver, setAssignedDriver] = useState("");
+  const [assignedDriverId, setAssignedDriverId] = useState<number | null>(null);
+  const [driverUsers, setDriverUsers] = useState<{ id: number; name: string }[]>([]);
   const [items, setItems] = useState<OrderItem[]>([{ name: "", quantity: 1 }]);
   const [itemsPending, setItemsPending] = useState(false);
-
-  const driverOptions = ["Oscar", "Jamie", "DeliverThat"];
   const [notes, setNotes] = useState("");
   const [totalAmount, setTotalAmount] = useState("");
   const [orderSource, setOrderSource] = useState("");
@@ -62,6 +62,14 @@ export default function CreateOrderModal({ onClose, onCreated, isAdmin = false }
   const [pdfParsed, setPdfParsed] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch driver users for assignment dropdown
+  useEffect(() => {
+    fetch("/api/drivers")
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) setDriverUsers(data); })
+      .catch(() => {});
+  }, []);
 
   const addItem = () => setItems([...items, { name: "", quantity: 1 }]);
 
@@ -150,6 +158,7 @@ export default function CreateOrderModal({ onClose, onCreated, isAdmin = false }
           readyTime: readyDate ? readyDate.toISOString() : null,
           deliveryAddress: deliveryMode === "delivery" ? deliveryAddress : null,
           assignedDriver: deliveryMode === "delivery" && assignedDriver ? assignedDriver : null,
+          assignedDriverId: deliveryMode === "delivery" && assignedDriverId ? assignedDriverId : null,
           items: validItems,
           notes: notes || null,
           totalAmount: totalAmount ? Math.round(parseFloat(totalAmount) * 100) : null,
@@ -259,9 +268,20 @@ export default function CreateOrderModal({ onClose, onCreated, isAdmin = false }
               {isAdmin && (
                 <div>
                   <label className="block text-sm text-gray-400 mb-1">Assign Driver</label>
-                  <select value={assignedDriver} onChange={(e) => setAssignedDriver(e.target.value)} className="w-full bg-dark-700 text-white px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-chicken-primary">
+                  <select
+                    value={assignedDriverId || ""}
+                    onChange={(e) => {
+                      const id = e.target.value ? parseInt(e.target.value) : null;
+                      setAssignedDriverId(id);
+                      const driver = driverUsers.find((d) => d.id === id);
+                      setAssignedDriver(driver?.name || "");
+                    }}
+                    className="w-full bg-dark-700 text-white px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-chicken-primary"
+                  >
                     <option value="">Select driver...</option>
-                    {driverOptions.map((driver) => (<option key={driver} value={driver}>{driver}</option>))}
+                    {driverUsers.map((driver) => (
+                      <option key={driver.id} value={driver.id}>{driver.name}</option>
+                    ))}
                   </select>
                 </div>
               )}

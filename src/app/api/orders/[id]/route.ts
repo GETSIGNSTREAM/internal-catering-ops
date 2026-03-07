@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, requireAdmin } from "@/lib/auth-helpers";
 import { storage } from "@/lib/storage";
 import { UpdateOrderSchema } from "@/lib/validations";
+import { sendPushNotification } from "@/lib/push-notifications";
 
 export async function GET(
   _request: NextRequest,
@@ -21,8 +22,14 @@ export async function GET(
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    // Check store access for non-admin
-    if (auth.session.user.role !== "admin") {
+    // Check access for non-admin users
+    if (auth.session.user.role === "driver") {
+      // Drivers can only see orders assigned to them
+      if (order.assignedDriverId !== parseInt(auth.session.user.id, 10)) {
+        return NextResponse.json({ error: "Access denied" }, { status: 403 });
+      }
+    } else if (auth.session.user.role !== "admin") {
+      // GMs can only see orders for their store
       if (order.assignedStoreId !== auth.session.user.storeId) {
         return NextResponse.json({ error: "Access denied" }, { status: 403 });
       }
@@ -60,8 +67,12 @@ export async function PATCH(
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    // Check store access for non-admin
-    if (auth.session.user.role !== "admin") {
+    // Check access for non-admin users
+    if (auth.session.user.role === "driver") {
+      if (existingOrder.assignedDriverId !== parseInt(auth.session.user.id, 10)) {
+        return NextResponse.json({ error: "Access denied" }, { status: 403 });
+      }
+    } else if (auth.session.user.role !== "admin") {
       if (existingOrder.assignedStoreId !== auth.session.user.storeId) {
         return NextResponse.json({ error: "Access denied" }, { status: 403 });
       }
@@ -116,11 +127,20 @@ export async function PATCH(
       return NextResponse.json({ error: "Failed to update order" }, { status: 500 });
     }
 
-    // Fire notifications on status change (console.log placeholders for now)
+    // Fire notifications on status change
     if (statusChanged) {
       console.log(`[Integration] Status changed: Order #${updated.orderNumber || updated.id} -> ${data.status}`);
-      console.log(`[Integration] Slack notify: Order #${updated.orderNumber || updated.id} status -> ${data.status}`);
-      console.log(`[Integration] Push notification: Order #${updated.orderNumber || updated.id} status -> ${data.status}`);
+    }
+
+    // Notify driver when assigned to an order
+    if (data.assignedDriverId && data.assignedDriverId !== existingOrder.assignedDriverId) {
+      const customerLabel = existingOrder.customerName || `#${existingOrder.orderNumber || existingOrder.id}`;
+      sendPushNotification(
+        "New Delivery Assigned",
+        `Order for ${customerLabel}`,
+        "/driver",
+        data.assignedDriverId
+      ).catch((err) => console.error("Push notify error:", err));
     }
 
     return NextResponse.json(updated);

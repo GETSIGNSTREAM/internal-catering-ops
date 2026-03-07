@@ -34,9 +34,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Admin-only pages: check role from CA_users via Supabase REST API
+  // Role-based routing: admin-only pages and driver redirect
   const adminPaths = ["/team", "/stores", "/store-performance"];
-  if (adminPaths.some((p) => pathname.startsWith(p))) {
+  const needsRoleCheck = adminPaths.some((p) => pathname.startsWith(p)) ||
+    pathname === "/" || pathname === "/orders";
+
+  if (needsRoleCheck) {
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/CA_users?supabase_uid=eq.${user.id}&select=role`,
       {
@@ -48,8 +51,16 @@ export async function middleware(request: NextRequest) {
       },
     );
     const rows = await res.json();
-    if (!rows?.[0] || rows[0].role !== "admin") {
+    const role = rows?.[0]?.role;
+
+    // Admin-only pages
+    if (adminPaths.some((p) => pathname.startsWith(p)) && role !== "admin") {
       return NextResponse.redirect(new URL("/orders", request.url));
+    }
+
+    // Redirect drivers from root/orders to /driver
+    if (role === "driver" && (pathname === "/" || pathname === "/orders")) {
+      return NextResponse.redirect(new URL("/driver", request.url));
     }
   }
 
