@@ -106,9 +106,11 @@ export default function TrackingPage() {
       {/* Header */}
       <header className="bg-[#222] border-b border-[#333] px-4 py-4">
         <div className="max-w-lg mx-auto flex items-center gap-3">
-          <div className="w-10 h-10 bg-orange-400 rounded-xl flex items-center justify-center text-lg font-bold text-[#1a1a1a]">
-            W
-          </div>
+          <img
+            src="/icons/wildbird-logo.png"
+            alt="WILDBIRD"
+            className="w-10 h-10 rounded-xl object-cover"
+          />
           <div className="flex-1">
             <h1 className="text-white font-bold text-sm">WILDBIRD Catering</h1>
             <p className="text-gray-400 text-xs">Order Tracking</p>
@@ -139,7 +141,7 @@ export default function TrackingPage() {
                 {data.currentMilestone === "preparing" && "🔥"}
                 {data.currentMilestone === "packed" && "📦"}
                 {data.currentMilestone === "en_route" && (
-                  <img src="/icons/wildbird-van.png" alt="WILDBIRD delivery van" className="h-12 w-auto" />
+                  <img src="/icons/wildbird-van.png" alt="WILDBIRD delivery van" className="h-36 w-auto mx-auto" />
                 )}
                 {data.currentMilestone === "arriving" && "📍"}
                 {data.currentMilestone === "delivered" && "🎉"}
