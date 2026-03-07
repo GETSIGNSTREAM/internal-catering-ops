@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { storage } from "@/lib/storage";
+import { TRACKING_MILESTONES } from "@/lib/schema";
 
 /**
  * GET /api/track/[trackingId]
@@ -68,10 +69,13 @@ export async function GET(
       numberOfGuests: order.numberOfGuests,
       driver: driverName ? { name: driverName, phone: driverPhone } : null,
       driverLocation,
-      history: history.map((h) => ({
-        milestone: h.milestone,
-        triggeredAt: h.triggeredAt,
-      })),
+      // Only expose customer-facing milestones (filter out internal stages like "new", "cooking", "ready")
+      history: history
+        .filter((h) => (TRACKING_MILESTONES as readonly string[]).includes(h.milestone))
+        .map((h) => ({
+          milestone: h.milestone,
+          triggeredAt: h.triggeredAt,
+        })),
     });
   } catch (error: any) {
     console.error("Tracking lookup error:", error);

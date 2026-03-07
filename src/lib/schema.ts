@@ -202,7 +202,7 @@ export type InsertTrackingHistory = typeof trackingHistory.$inferInsert;
 export type DriverLocation = typeof driverLocations.$inferSelect;
 export type InsertDriverLocation = typeof driverLocations.$inferInsert;
 
-// Tracking milestone enum
+// Tracking milestone enum (customer-facing — used by public tracking page)
 export const TRACKING_MILESTONES = [
   "confirmed",
   "preparing",
@@ -212,3 +212,58 @@ export const TRACKING_MILESTONES = [
   "delivered",
 ] as const;
 export type TrackingMilestone = typeof TRACKING_MILESTONES[number];
+
+// Unified stages — single source of truth for internal + customer progress
+export const UNIFIED_STAGES = [
+  "new",
+  "confirmed",
+  "cooking",
+  "ready",
+  "en_route",
+  "arriving",
+  "delivered",
+] as const;
+export type UnifiedStage = typeof UNIFIED_STAGES[number];
+
+// Maps unified stage → customer-facing tracking milestone (null = no customer update)
+export const STAGE_TO_MILESTONE: Record<string, string | null> = {
+  new: null,
+  confirmed: "confirmed",
+  cooking: "preparing",
+  ready: "packed",
+  en_route: "en_route",
+  arriving: "arriving",
+  delivered: "delivered",
+};
+
+// Maps unified stage → internal prepStatus value
+export const STAGE_TO_PREP: Record<string, string> = {
+  new: "new",
+  confirmed: "confirmed",
+  cooking: "cooking",
+  ready: "ready",
+  en_route: "ready",
+  arriving: "ready",
+  delivered: "delivered",
+};
+
+// Maps unified stage → top-level order status
+export const STAGE_TO_STATUS: Record<string, string> = {
+  new: "new",
+  confirmed: "new",
+  cooking: "prep",
+  ready: "ready",
+  en_route: "ready",
+  arriving: "ready",
+  delivered: "delivered",
+};
+
+// Reverse map: tracking milestone → unified stage (for reading current stage from DB)
+export const MILESTONE_TO_STAGE: Record<string, string> = {
+  confirmed: "confirmed",
+  preparing: "cooking",
+  packed: "ready",
+  en_route: "en_route",
+  arriving: "arriving",
+  delivered: "delivered",
+};

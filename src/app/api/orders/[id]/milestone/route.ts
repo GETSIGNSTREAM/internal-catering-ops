@@ -1,13 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth-helpers";
 import { storage } from "@/lib/storage";
-import { TRACKING_MILESTONES, type TrackingMilestone } from "@/lib/schema";
+import {
+  TRACKING_MILESTONES,
+  UNIFIED_STAGES,
+  STAGE_TO_MILESTONE,
+  STAGE_TO_PREP,
+  STAGE_TO_STATUS,
+  type TrackingMilestone,
+  type UnifiedStage,
+} from "@/lib/schema";
 
 /**
  * POST /api/orders/[id]/milestone
- * Advance an order to a new tracking milestone.
- * Creates a tracking history entry and updates the order's trackingMilestone.
+ * Advance an order to a new stage (unified) or tracking milestone (legacy).
+ * Creates a tracking history entry and updates prepStatus, status, and trackingMilestone.
  * Accessible by admin and driver roles.
+ *
+ * Body options:
+ *   { stage: "cooking", notes?: string }   — unified stage (preferred)
+ *   { milestone: "preparing", notes?: string } — legacy tracking milestone
  */
 export async function POST(
   request: NextRequest,
@@ -23,11 +35,32 @@ export async function POST(
   }
 
   const body = await request.json();
-  const { milestone, notes } = body;
+  const { stage, milestone, notes } = body;
 
-  if (!milestone || !TRACKING_MILESTONES.includes(milestone as TrackingMilestone)) {
+  // Determine which path to use: unified stage (preferred) or legacy milestone
+  let unifiedStage: string | null = null;
+
+  if (stage) {
+    // New unified stage path
+    if (!UNIFIED_STAGES.includes(stage as UnifiedStage)) {
+      return NextResponse.json(
+        { error: "Invalid stage", validStages: UNIFIED_STAGES },
+        { status: 400 }
+      );
+    }
+    unifiedStage = stage;
+  } else if (milestone) {
+    // Legacy milestone path — keep backward compatibility
+    if (!TRACKING_MILESTONES.includes(milestone as TrackingMilestone)) {
+      return NextResponse.json(
+        { error: "Invalid milestone", validMilestones: TRACKING_MILESTONES },
+        { status: 400 }
+      );
+    }
+    unifiedStage = null; // handled via legacy path below
+  } else {
     return NextResponse.json(
-      { error: "Invalid milestone", validMilestones: TRACKING_MILESTONES },
+      { error: "Either 'stage' or 'milestone' is required" },
       { status: 400 }
     );
   }
@@ -45,37 +78,58 @@ export async function POST(
       }
     }
 
-    // Update the order's tracking milestone
-    const updateData: Record<string, any> = {
-      trackingMilestone: milestone,
-    };
+    const updateData: Record<string, any> = {};
+    let historyMilestone: string;
 
-    // Also update order status to match milestone
-    if (milestone === "delivered") {
-      updateData.status = "delivered";
-      updateData.prepStatus = "delivered";
-      updateData.completedAt = new Date();
-    } else if (milestone === "en_route" || milestone === "arriving") {
-      updateData.status = "ready";
-      updateData.prepStatus = "ready";
-    } else if (milestone === "preparing" || milestone === "packed") {
-      updateData.status = "prep";
-      updateData.prepStatus = milestone === "packed" ? "ready" : "cooking";
+    if (unifiedStage) {
+      // ── Unified stage path ──
+      updateData.prepStatus = STAGE_TO_PREP[unifiedStage];
+      updateData.status = STAGE_TO_STATUS[unifiedStage];
+
+      // Update customer-facing tracking milestone for delivery orders
+      const mappedMilestone = STAGE_TO_MILESTONE[unifiedStage];
+      if (order.deliveryMode === "delivery" && mappedMilestone) {
+        updateData.trackingMilestone = mappedMilestone;
+      }
+
+      if (unifiedStage === "delivered") {
+        updateData.completedAt = new Date();
+      }
+
+      historyMilestone = unifiedStage;
+    } else {
+      // ── Legacy milestone path (backward compatibility) ──
+      updateData.trackingMilestone = milestone;
+
+      if (milestone === "delivered") {
+        updateData.status = "delivered";
+        updateData.prepStatus = "delivered";
+        updateData.completedAt = new Date();
+      } else if (milestone === "en_route" || milestone === "arriving") {
+        updateData.status = "ready";
+        updateData.prepStatus = "ready";
+      } else if (milestone === "preparing" || milestone === "packed") {
+        updateData.status = "prep";
+        updateData.prepStatus = milestone === "packed" ? "ready" : "cooking";
+      }
+
+      historyMilestone = milestone;
     }
 
     await storage.updateOrder(orderId, updateData);
 
-    // Create tracking history entry
+    // Always create tracking history entry (audit trail)
     const historyEntry = await storage.createTrackingHistory({
       orderId,
-      milestone,
+      milestone: historyMilestone,
       triggeredBy: parseInt(auth.session.user.id, 10),
       notes: notes || null,
     });
 
     return NextResponse.json({
       success: true,
-      milestone,
+      stage: unifiedStage || undefined,
+      milestone: updateData.trackingMilestone || milestone,
       history: historyEntry,
     });
   } catch (error: any) {

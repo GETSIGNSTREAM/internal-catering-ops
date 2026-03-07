@@ -80,22 +80,47 @@ export default function OrderDetailPage() {
   const isDriver = user?.role === "driver";
   const isAdmin = user?.role === "admin";
 
-  const trackingMilestones = [
-    { value: "confirmed", label: "Confirmed", icon: CheckCircle, emoji: "\u2713" },
-    { value: "preparing", label: "Preparing", icon: Flame, emoji: "\ud83d\udd25" },
-    { value: "packed", label: "Packed", icon: Package, emoji: "\ud83d\udce6" },
-    { value: "en_route", label: "En Route", icon: Truck, emoji: "\ud83d\ude90" },
-    { value: "arriving", label: "Arriving", icon: MapPin, emoji: "\ud83d\udccd" },
-    { value: "delivered", label: "Delivered", icon: PartyPopper, emoji: "\ud83c\udf89" },
-  ];
-
-  const prepStages = [
+  // Unified stages — kitchen prep + delivery in one flow
+  const kitchenStages = [
     { value: "new", label: t("orders.prepStatus.new"), icon: ClipboardList },
     { value: "confirmed", label: t("orders.prepStatus.confirmed"), icon: CheckCircle },
     { value: "cooking", label: t("orders.prepStatus.cooking"), icon: Flame },
-    { value: "ready", label: t("orders.prepStatus.ready"), icon: Check },
-    { value: "delivered", label: t("orders.prepStatus.delivered"), icon: Package },
+    { value: "ready", label: t("orders.prepStatus.ready"), icon: Package },
   ];
+  const deliveryOnlyStages = [
+    { value: "en_route", label: "En Route", icon: Truck },
+    { value: "arriving", label: "Arriving", icon: MapPin },
+    { value: "delivered", label: "Delivered", icon: PartyPopper },
+  ];
+  const allStages = order?.deliveryMode === "delivery"
+    ? [...kitchenStages, ...deliveryOnlyStages]
+    : kitchenStages;
+
+  // Derive current unified stage from DB fields
+  const MILESTONE_TO_STAGE: Record<string, string> = {
+    confirmed: "confirmed", preparing: "cooking", packed: "ready",
+    en_route: "en_route", arriving: "arriving", delivered: "delivered",
+  };
+  const STAGE_TO_MILESTONE: Record<string, string | null> = {
+    new: null, confirmed: "confirmed", cooking: "preparing",
+    ready: "packed", en_route: "en_route", arriving: "arriving", delivered: "delivered",
+  };
+  const STAGE_TO_PREP: Record<string, string> = {
+    new: "new", confirmed: "confirmed", cooking: "cooking",
+    ready: "ready", en_route: "ready", arriving: "ready", delivered: "delivered",
+  };
+  const STAGE_TO_STATUS: Record<string, string> = {
+    new: "new", confirmed: "new", cooking: "prep",
+    ready: "ready", en_route: "ready", arriving: "ready", delivered: "delivered",
+  };
+
+  const getCurrentStage = (o: Order): string => {
+    if (o.deliveryMode === "delivery" && o.trackingMilestone) {
+      const mapped = MILESTONE_TO_STAGE[o.trackingMilestone];
+      if (mapped) return mapped;
+    }
+    return o.prepStatus || "new";
+  };
 
   useEffect(() => {
     Promise.all([
@@ -132,25 +157,42 @@ export default function OrderDetailPage() {
     };
   }, [order?.photoProofUrl]);
 
-  const updatePrepStatus = async (newStatus: string) => {
-    if (newStatus === "delivered" && requirePhotoForDelivery && !order?.photoProofUrl) {
+  const handleStageClick = async (stageValue: string) => {
+    if (!order || advancingMilestone) return;
+
+    // Photo gate for "delivered"
+    if (stageValue === "delivered" && requirePhotoForDelivery && !order.photoProofUrl) {
       alert(t("photo.photoRequired"));
       return;
     }
 
-    let finalStatus = "prep";
-    if (newStatus === "ready") finalStatus = "ready";
-    if (newStatus === "delivered") finalStatus = "delivered";
+    setAdvancingMilestone(true);
+    try {
+      const res = await fetch(`/api/orders/${order.id}/milestone`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stage: stageValue }),
+      });
+      if (res.ok) {
+        const newPrepStatus = STAGE_TO_PREP[stageValue];
+        const newStatus = STAGE_TO_STATUS[stageValue];
+        const newMilestone = order.deliveryMode === "delivery"
+          ? (STAGE_TO_MILESTONE[stageValue] || order.trackingMilestone)
+          : order.trackingMilestone;
 
-    await fetch(`/api/orders/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        prepStatus: newStatus,
-        status: finalStatus,
-      }),
-    });
-    setOrder((prev) => (prev ? { ...prev, prepStatus: newStatus, status: finalStatus } : null));
+        setOrder((prev) => prev ? {
+          ...prev,
+          prepStatus: newPrepStatus,
+          status: newStatus,
+          trackingMilestone: newMilestone || prev.trackingMilestone,
+          completedAt: stageValue === "delivered" ? new Date().toISOString() : prev.completedAt,
+        } : null);
+      }
+    } catch (error) {
+      console.error("Stage update error:", error);
+    } finally {
+      setAdvancingMilestone(false);
+    }
   };
 
   const toggleChecklist = async (checklist: Checklist) => {
@@ -319,30 +361,6 @@ export default function OrderDetailPage() {
     }
   };
 
-  const handleAdvanceMilestone = async (milestone: string) => {
-    if (!order || advancingMilestone) return;
-    setAdvancingMilestone(true);
-    try {
-      const res = await fetch(`/api/orders/${order.id}/milestone`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ milestone }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setOrder((prev) => prev ? {
-          ...prev,
-          trackingMilestone: milestone,
-          status: milestone === "delivered" ? "delivered" : prev.status,
-          prepStatus: milestone === "delivered" ? "delivered" : prev.prepStatus,
-        } : null);
-      }
-    } catch (error) {
-      console.error("Advance milestone error:", error);
-    } finally {
-      setAdvancingMilestone(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -506,163 +524,156 @@ export default function OrderDetailPage() {
           </div>
         </section>
 
-        {/* ── Delivery Tracking Section ── */}
-        {order.deliveryMode === "delivery" && (
-          <section className="bg-dark-700 rounded-xl p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-gray-400 flex items-center gap-2">
-                <Navigation size={16} /> Delivery Tracking
-              </h2>
-              {order.trackingToken ? (
-                <button
-                  onClick={handleCopyTrackingLink}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    copiedLink
-                      ? "bg-green-500/20 text-green-400"
-                      : "bg-chicken-primary/20 text-chicken-primary hover:bg-chicken-primary/30"
-                  }`}
+        {/* ── Unified Order Progress ── */}
+        <section className="bg-dark-700 rounded-xl p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-gray-400 flex items-center gap-2">
+              <Navigation size={16} /> Order Progress
+            </h2>
+            {/* Tracking link tools — delivery orders only */}
+            {order.deliveryMode === "delivery" && (
+              <>
+                {order.trackingToken ? (
+                  <button
+                    onClick={handleCopyTrackingLink}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      copiedLink
+                        ? "bg-green-500/20 text-green-400"
+                        : "bg-chicken-primary/20 text-chicken-primary hover:bg-chicken-primary/30"
+                    }`}
+                  >
+                    {copiedLink ? <Check size={14} /> : <Copy size={14} />}
+                    {copiedLink ? "Copied!" : "Copy Link"}
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleGenerateTrackingLink}
+                    disabled={generatingToken}
+                    className="flex items-center gap-1.5 bg-chicken-primary text-dark-900 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-chicken-secondary transition-colors disabled:opacity-50"
+                  >
+                    <Share2 size={14} />
+                    {generatingToken ? "Generating..." : "Enable Tracking"}
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Row 1: Kitchen stages */}
+          {(() => {
+            const currentStage = getCurrentStage(order);
+            const currentGlobalIdx = allStages.findIndex((s) => s.value === currentStage);
+
+            const renderProgressRow = (stages: typeof kitchenStages, globalOffset: number, label: string) => {
+              return (
+                <div className="mb-1">
+                  <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider mb-2 block">{label}</span>
+                  <div className="flex items-center justify-between relative">
+                    {/* Background track */}
+                    <div className="absolute top-4 left-4 right-4 h-0.5 bg-dark-500" />
+                    {/* Animated progress fill */}
+                    {(() => {
+                      const localCurrentIdx = Math.min(
+                        Math.max(currentGlobalIdx - globalOffset, -1),
+                        stages.length - 1
+                      );
+                      return (
+                        <motion.div
+                          className="absolute top-4 left-4 h-0.5 bg-chicken-primary"
+                          initial={false}
+                          animate={{
+                            width: localCurrentIdx >= 0
+                              ? `calc(${(localCurrentIdx / Math.max(stages.length - 1, 1)) * 100}% - 32px)`
+                              : "0px",
+                          }}
+                          transition={{ duration: 0.6, ease: "easeInOut" }}
+                        />
+                      );
+                    })()}
+
+                    {stages.map((stage, localIndex) => {
+                      const globalIndex = globalOffset + localIndex;
+                      const isActive = globalIndex <= currentGlobalIdx;
+                      const isCurrent = globalIndex === currentGlobalIdx;
+                      const isNext = globalIndex === currentGlobalIdx + 1;
+                      const canClick = isAdmin || isDriver;
+                      const Icon = stage.icon;
+
+                      return (
+                        <motion.button
+                          key={stage.value}
+                          onClick={() => canClick && handleStageClick(stage.value)}
+                          disabled={advancingMilestone || !canClick}
+                          className="relative z-10 flex flex-col items-center flex-1"
+                          whileTap={canClick ? { scale: 0.9 } : {}}
+                        >
+                          <motion.div
+                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                              isCurrent
+                                ? "bg-chicken-primary text-dark-900 ring-4 ring-chicken-primary/30"
+                                : isActive
+                                ? "bg-chicken-primary text-dark-900"
+                                : isNext
+                                ? "bg-dark-500 text-gray-300 ring-2 ring-dashed ring-gray-500"
+                                : "bg-dark-500 text-gray-500"
+                            }`}
+                            animate={isCurrent ? { scale: [1, 1.1, 1] } : {}}
+                            transition={{ repeat: Infinity, duration: 2 }}
+                          >
+                            <Icon size={14} strokeWidth={2.5} />
+                          </motion.div>
+                          <span
+                            className={`text-[9px] mt-1 text-center font-medium leading-tight ${
+                              isActive ? "text-chicken-primary" : "text-gray-500"
+                            }`}
+                          >
+                            {stage.label}
+                          </span>
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            };
+
+            return (
+              <>
+                {renderProgressRow(kitchenStages, 0, "Kitchen")}
+                {order.deliveryMode === "delivery" && (
+                  <>
+                    {/* Visual bridge between kitchen → delivery */}
+                    <div className="flex justify-center my-1">
+                      <div className={`w-0.5 h-4 ${currentGlobalIdx >= kitchenStages.length ? "bg-chicken-primary" : "bg-dark-500"}`} />
+                    </div>
+                    {renderProgressRow(deliveryOnlyStages, kitchenStages.length, "Delivery")}
+                  </>
+                )}
+              </>
+            );
+          })()}
+
+          {/* Tracking share toolbar — delivery orders with token */}
+          {order.deliveryMode === "delivery" && order.trackingToken && (
+            <div className="flex gap-2 mt-3 pt-3 border-t border-dark-600">
+              <button
+                onClick={() => window.open(`/track/${order.trackingToken}`, "_blank")}
+                className="flex-1 flex items-center justify-center gap-2 bg-dark-600 text-gray-300 py-2 rounded-xl text-xs font-medium hover:bg-dark-500 transition-colors"
+              >
+                <ExternalLink size={14} />
+                Preview
+              </button>
+              {order.customerPhone && (
+                <a
+                  href={`sms:${order.customerPhone}?body=Track your WILDBIRD catering order: ${window.location.origin}/track/${order.trackingToken}`}
+                  className="flex items-center justify-center gap-2 bg-green-600/20 text-green-400 px-4 py-2 rounded-xl text-xs font-medium hover:bg-green-600/30 transition-colors"
                 >
-                  {copiedLink ? <Check size={14} /> : <Copy size={14} />}
-                  {copiedLink ? "Copied!" : "Copy Link"}
-                </button>
-              ) : (
-                <button
-                  onClick={handleGenerateTrackingLink}
-                  disabled={generatingToken}
-                  className="flex items-center gap-1.5 bg-chicken-primary text-dark-900 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-chicken-secondary transition-colors disabled:opacity-50"
-                >
-                  <Share2 size={14} />
-                  {generatingToken ? "Generating..." : "Enable Tracking"}
-                </button>
+                  <Phone size={14} />
+                  SMS
+                </a>
               )}
             </div>
-
-            {/* 6-Step Milestone Progress */}
-            <div className="flex items-center justify-between relative mb-4">
-              {/* Background track */}
-              <div className="absolute top-4 left-4 right-4 h-0.5 bg-dark-500" />
-              {/* Progress fill */}
-              {(() => {
-                const currentIdx = trackingMilestones.findIndex((m) => m.value === (order.trackingMilestone || "confirmed"));
-                return (
-                  <motion.div
-                    className="absolute top-4 left-4 h-0.5 bg-chicken-primary"
-                    initial={false}
-                    animate={{
-                      width: currentIdx >= 0
-                        ? `calc(${(currentIdx / (trackingMilestones.length - 1)) * 100}% - 32px)`
-                        : "0px",
-                    }}
-                    transition={{ duration: 0.6, ease: "easeInOut" }}
-                  />
-                );
-              })()}
-
-              {trackingMilestones.map((milestone, index) => {
-                const currentIdx = trackingMilestones.findIndex((m) => m.value === (order.trackingMilestone || "confirmed"));
-                const isActive = index <= currentIdx;
-                const isCurrent = index === currentIdx;
-                const isNext = index === currentIdx + 1;
-                const Icon = milestone.icon;
-
-                return (
-                  <motion.button
-                    key={milestone.value}
-                    onClick={() => (isAdmin || isDriver) && handleAdvanceMilestone(milestone.value)}
-                    disabled={advancingMilestone || (!isAdmin && !isDriver)}
-                    className="relative z-10 flex flex-col items-center"
-                    style={{ width: "48px" }}
-                    whileTap={(isAdmin || isDriver) ? { scale: 0.9 } : {}}
-                  >
-                    <motion.div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                        isCurrent
-                          ? "bg-chicken-primary text-dark-900 ring-4 ring-chicken-primary/30"
-                          : isActive
-                          ? "bg-chicken-primary text-dark-900"
-                          : isNext
-                          ? "bg-dark-500 text-gray-300 ring-2 ring-dashed ring-gray-500"
-                          : "bg-dark-500 text-gray-500"
-                      }`}
-                      animate={isCurrent ? { scale: [1, 1.1, 1] } : {}}
-                      transition={{ repeat: Infinity, duration: 2 }}
-                    >
-                      <Icon size={14} strokeWidth={2.5} />
-                    </motion.div>
-                    <span
-                      className={`text-[9px] mt-1 text-center font-medium leading-tight ${
-                        isActive ? "text-chicken-primary" : "text-gray-500"
-                      }`}
-                    >
-                      {milestone.label}
-                    </span>
-                  </motion.button>
-                );
-              })}
-            </div>
-
-            {/* Share tracking link */}
-            {order.trackingToken && (
-              <div className="flex gap-2 mt-2">
-                <button
-                  onClick={() => window.open(`/track/${order.trackingToken}`, "_blank")}
-                  className="flex-1 flex items-center justify-center gap-2 bg-dark-600 text-gray-300 py-2.5 rounded-xl text-xs font-medium hover:bg-dark-500 transition-colors"
-                >
-                  <ExternalLink size={14} />
-                  Preview Tracking Page
-                </button>
-                {order.customerPhone && (
-                  <a
-                    href={`sms:${order.customerPhone}?body=Track your WILDBIRD catering order: ${window.location.origin}/track/${order.trackingToken}`}
-                    className="flex items-center justify-center gap-2 bg-green-600/20 text-green-400 px-4 py-2.5 rounded-xl text-xs font-medium hover:bg-green-600/30 transition-colors"
-                  >
-                    <Phone size={14} />
-                    SMS
-                  </a>
-                )}
-              </div>
-            )}
-          </section>
-        )}
-
-        <section className="bg-dark-700 rounded-xl p-4">
-          <h2 className="text-sm font-semibold text-gray-400 mb-4 flex items-center gap-2">
-            <Flame size={16} /> {t("prep.title")}
-          </h2>
-          <div className={`grid gap-2 ${order.deliveryMode === "delivery" ? "grid-cols-5" : "grid-cols-4"}`}>
-            {prepStages
-              .filter((stage) => order.deliveryMode === "delivery" || stage.value !== "delivered")
-              .map((stage) => {
-                const isCurrent = order.prepStatus === stage.value;
-                const canEdit = !isDriver || (stage.value === "delivered" || stage.value === "ready" || order.prepStatus === stage.value);
-                const Icon = stage.icon;
-
-                return (
-                  <motion.button
-                    key={stage.value}
-                    onClick={() => canEdit && updatePrepStatus(stage.value)}
-                    disabled={!canEdit}
-                    className={`flex flex-col items-center p-3 rounded-xl transition-all ${
-                      isCurrent
-                        ? "bg-chicken-primary text-dark-900"
-                        : "bg-dark-600 text-gray-300"
-                    } ${!canEdit ? "opacity-50 cursor-not-allowed" : ""}`}
-                    whileTap={canEdit ? { scale: 0.95 } : {}}
-                    animate={isCurrent ? { scale: [1, 1.05, 1] } : {}}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <motion.div
-                      className="mb-1"
-                      animate={isCurrent ? { rotate: [0, -10, 10, 0] } : {}}
-                      transition={{ duration: 0.4 }}
-                    >
-                      <Icon size={24} strokeWidth={isCurrent ? 2.5 : 2} />
-                    </motion.div>
-                    <span className="text-xs font-medium text-center">{stage.label}</span>
-                  </motion.button>
-                );
-              })}
-          </div>
+          )}
         </section>
 
         <section className="bg-dark-700 rounded-xl p-4">
