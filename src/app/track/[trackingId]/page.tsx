@@ -138,7 +138,9 @@ export default function TrackingPage() {
                 {data.currentMilestone === "confirmed" && "✅"}
                 {data.currentMilestone === "preparing" && "🔥"}
                 {data.currentMilestone === "packed" && "📦"}
-                {data.currentMilestone === "en_route" && "🚐"}
+                {data.currentMilestone === "en_route" && (
+                  <img src="/icons/wildbird-van.png" alt="WILDBIRD delivery van" className="h-12 w-auto" />
+                )}
                 {data.currentMilestone === "arriving" && "📍"}
                 {data.currentMilestone === "delivered" && "🎉"}
               </motion.div>

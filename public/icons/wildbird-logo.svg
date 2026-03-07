@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <!-- Left bird foot -->
+  <g stroke="#C4A265" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Center toe (up-left) -->
+    <path d="M 38 65 C 36 55 34 45 30 35" stroke-width="6"/>
+    <!-- Left toe (down-left) -->
+    <path d="M 38 65 C 30 70 23 76 18 82" stroke-width="5.5"/>
+    <!-- Right toe (right) -->
+    <path d="M 38 65 C 46 63 52 58 56 52" stroke-width="5.5"/>
+  </g>
+  <!-- Right bird foot -->
+  <g stroke="#C4A265" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Center toe (up) -->
+    <path d="M 72 78 C 74 68 76 58 80 48" stroke-width="6"/>
+    <!-- Left toe (left-up) -->
+    <path d="M 72 78 C 64 72 58 66 54 60" stroke-width="5.5"/>
+    <!-- Right toe (down-right) -->
+    <path d="M 72 78 C 80 83 87 87 95 90" stroke-width="5.5"/>
+  </g>
+</svg>

@@ -1,20 +1,81 @@
 "use client";
 
+import { useState, useRef, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/components/providers/supabase-auth-provider";
-import { ClipboardList, Calendar, LayoutDashboard, StickyNote, Truck } from "lucide-react";
+import {
+  ClipboardList, Calendar, LayoutDashboard, StickyNote, Truck,
+  Shield, Users, Check,
+} from "lucide-react";
+
+/** Inline WILDBIRD bird-feet logo SVG */
+function WildbirdLogo({ size = 28, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 120 120"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+    >
+      {/* Left bird foot */}
+      <g stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M 38 65 C 36 55 34 45 30 35" strokeWidth="6" />
+        <path d="M 38 65 C 30 70 23 76 18 82" strokeWidth="5.5" />
+        <path d="M 38 65 C 46 63 52 58 56 52" strokeWidth="5.5" />
+      </g>
+      {/* Right bird foot */}
+      <g stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M 72 78 C 74 68 76 58 80 48" strokeWidth="6" />
+        <path d="M 72 78 C 64 72 58 66 54 60" strokeWidth="5.5" />
+        <path d="M 72 78 C 80 83 87 87 95 90" strokeWidth="5.5" />
+      </g>
+    </svg>
+  );
+}
+
+const ROLE_OPTIONS = [
+  { value: "admin", label: "Admin", icon: Shield },
+  { value: "gm", label: "Manager", icon: Users },
+  { value: "driver", label: "Driver", icon: Truck },
+];
 
 export default function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, effectiveRole, actualRole, setViewAs } = useAuth();
+  const [showRolePicker, setShowRolePicker] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
 
   const notesUrl = "https://www.icloud.com/notes/0e4btpmmAnAk2Eoii2LRIYKdg#CATERING_ORDERS:";
 
+  // Close picker when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setShowRolePicker(false);
+      }
+    }
+    if (showRolePicker) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [showRolePicker]);
+
+  const isAdmin = actualRole === "admin";
+  const currentViewRole = effectiveRole || "admin";
+
+  const handleRoleSelect = async (role: string) => {
+    setShowRolePicker(false);
+    if (role === currentViewRole) return;
+    await setViewAs(role === "admin" ? null : role);
+  };
+
   // Driver nav — simplified
-  if (user?.role === "driver") {
+  if (effectiveRole === "driver") {
     const driverItems = [
       { path: "/driver", label: "Deliveries", icon: Truck },
       { path: "/orders", label: t("orders.title"), icon: ClipboardList },
@@ -39,6 +100,44 @@ export default function BottomNav() {
               </button>
             );
           })}
+
+          {/* WILDBIRD logo — role switcher (admin only) */}
+          {isAdmin && (
+            <div className="relative" ref={pickerRef}>
+              <button
+                onClick={() => setShowRolePicker(!showRolePicker)}
+                className="flex flex-col items-center justify-center w-full h-full transition-colors text-chicken-primary hover:text-chicken-light"
+              >
+                <WildbirdLogo size={26} />
+                <span className="text-[10px] font-medium mt-0.5">Switch</span>
+              </button>
+
+              {/* Role picker popup */}
+              {showRolePicker && (
+                <div className="absolute bottom-full mb-2 right-0 bg-dark-700 border border-dark-500 rounded-xl shadow-xl p-1 min-w-[160px] z-50">
+                  {ROLE_OPTIONS.map((opt) => {
+                    const Icon = opt.icon;
+                    const isSelected = currentViewRole === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        onClick={() => handleRoleSelect(opt.value)}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                          isSelected
+                            ? "bg-chicken-primary/20 text-chicken-primary"
+                            : "text-gray-300 hover:bg-dark-600"
+                        }`}
+                      >
+                        <Icon size={18} />
+                        <span className="flex-1 text-left text-sm font-medium">{opt.label}</span>
+                        {isSelected && <Check size={16} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </nav>
     );
@@ -70,15 +169,54 @@ export default function BottomNav() {
             </button>
           );
         })}
-        <a
-          href={notesUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex flex-col items-center justify-center w-full h-full transition-colors text-gray-400 hover:text-gray-200"
-        >
-          <StickyNote size={24} className="mb-1" />
-          <span className="text-xs font-medium">{t("orders.notes")}</span>
-        </a>
+
+        {/* WILDBIRD logo — role switcher (admin only) */}
+        {isAdmin ? (
+          <div className="relative" ref={pickerRef}>
+            <button
+              onClick={() => setShowRolePicker(!showRolePicker)}
+              className="flex flex-col items-center justify-center w-full h-full transition-colors text-chicken-primary hover:text-chicken-light"
+            >
+              <WildbirdLogo size={26} />
+              <span className="text-[10px] font-medium mt-0.5">Switch</span>
+            </button>
+
+            {/* Role picker popup */}
+            {showRolePicker && (
+              <div className="absolute bottom-full mb-2 right-0 bg-dark-700 border border-dark-500 rounded-xl shadow-xl p-1 min-w-[160px] z-50">
+                {ROLE_OPTIONS.map((opt) => {
+                  const Icon = opt.icon;
+                  const isSelected = currentViewRole === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      onClick={() => handleRoleSelect(opt.value)}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                        isSelected
+                          ? "bg-chicken-primary/20 text-chicken-primary"
+                          : "text-gray-300 hover:bg-dark-600"
+                      }`}
+                    >
+                      <Icon size={18} />
+                      <span className="flex-1 text-left text-sm font-medium">{opt.label}</span>
+                      {isSelected && <Check size={16} />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ) : (
+          <a
+            href={notesUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex flex-col items-center justify-center w-full h-full transition-colors text-gray-400 hover:text-gray-200"
+          >
+            <StickyNote size={24} className="mb-1" />
+            <span className="text-xs font-medium">{t("orders.notes")}</span>
+          </a>
+        )}
       </div>
     </nav>
   );

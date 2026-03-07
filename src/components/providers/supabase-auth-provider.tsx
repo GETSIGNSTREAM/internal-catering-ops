@@ -11,20 +11,30 @@ interface CaUserSession {
   role: string;
   storeId: number | null;
   language: string;
+  viewAsRole?: string;
 }
 
 interface AuthContextType {
   user: CaUserSession | null;
   loading: boolean;
+  /** The effective role (viewAsRole if set, otherwise real role) */
+  effectiveRole: string | null;
+  /** The real database role (always the true role) */
+  actualRole: string | null;
   signOut: () => Promise<void>;
   updateLanguage: (lang: string) => Promise<void>;
+  /** Switch view to a different role (admin only). Pass null to reset. */
+  setViewAs: (role: string | null) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
+  effectiveRole: null,
+  actualRole: null,
   signOut: async () => {},
   updateLanguage: async () => {},
+  setViewAs: async () => {},
 });
 
 export function useAuth() {
@@ -78,8 +88,31 @@ export default function SupabaseAuthProvider({ children }: { children: React.Rea
     setUser((prev) => (prev ? { ...prev, language: lang } : null));
   };
 
+  const setViewAs = async (role: string | null) => {
+    await fetch("/api/auth/view-as", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role }),
+    });
+    // Reload to trigger middleware re-evaluation with new cookie
+    window.location.reload();
+  };
+
+  const actualRole = user?.role || null;
+  const effectiveRole = user?.viewAsRole || user?.role || null;
+
   return (
-    <AuthContext.Provider value={{ user, loading, signOut: handleSignOut, updateLanguage }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        effectiveRole,
+        actualRole,
+        signOut: handleSignOut,
+        updateLanguage,
+        setViewAs,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -37,7 +37,7 @@ export async function middleware(request: NextRequest) {
   // Role-based routing: admin-only pages and driver redirect
   const adminPaths = ["/team", "/stores", "/store-performance"];
   const needsRoleCheck = adminPaths.some((p) => pathname.startsWith(p)) ||
-    pathname === "/" || pathname === "/orders";
+    pathname === "/" || pathname === "/orders" || pathname === "/driver";
 
   if (needsRoleCheck) {
     const res = await fetch(
@@ -51,15 +51,19 @@ export async function middleware(request: NextRequest) {
       },
     );
     const rows = await res.json();
-    const role = rows?.[0]?.role;
+    const dbRole = rows?.[0]?.role;
 
-    // Admin-only pages
-    if (adminPaths.some((p) => pathname.startsWith(p)) && role !== "admin") {
+    // Check for admin view-as override (only honored for actual admins)
+    const viewAsCookie = request.cookies.get("viewAsRole")?.value;
+    const effectiveRole = (dbRole === "admin" && viewAsCookie) ? viewAsCookie : dbRole;
+
+    // Admin-only pages — block non-admins (effective role)
+    if (adminPaths.some((p) => pathname.startsWith(p)) && effectiveRole !== "admin") {
       return NextResponse.redirect(new URL("/orders", request.url));
     }
 
     // Redirect drivers from root/orders to /driver
-    if (role === "driver" && (pathname === "/" || pathname === "/orders")) {
+    if (effectiveRole === "driver" && (pathname === "/" || pathname === "/orders")) {
       return NextResponse.redirect(new URL("/driver", request.url));
     }
   }

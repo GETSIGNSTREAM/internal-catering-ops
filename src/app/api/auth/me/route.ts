@@ -2,13 +2,17 @@ import { createServerAuthClient } from "@/lib/supabase/server-auth";
 import { storage } from "@/lib/storage";
 import { NextRequest, NextResponse } from "next/server";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const supabase = await createServerAuthClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json(null, { status: 401 });
 
   const caUser = await storage.getUserBySupabaseUid(user.id);
   if (!caUser) return NextResponse.json(null, { status: 403 });
+
+  // Check for admin view-as override
+  const viewAsCookie = request.cookies.get("viewAsRole")?.value;
+  const viewAsRole = (caUser.role === "admin" && viewAsCookie) ? viewAsCookie : null;
 
   return NextResponse.json({
     id: String(caUser.id),
@@ -17,6 +21,7 @@ export async function GET() {
     role: caUser.role,
     storeId: caUser.storeId,
     language: caUser.language || "en",
+    ...(viewAsRole && { viewAsRole }),
   });
 }
 
