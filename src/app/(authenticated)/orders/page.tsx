@@ -34,13 +34,23 @@ interface Store {
   name: string;
 }
 
+function getLAMidnightUTC(year: number, month: number, day: number) {
+  // Calculate the actual UTC offset for LA on a specific date (handles DST)
+  const targetDate = new Date(year, month - 1, day, 12, 0, 0);
+  const laStr = targetDate.toLocaleString("en-US", { timeZone: "America/Los_Angeles" });
+  const utcStr = targetDate.toLocaleString("en-US", { timeZone: "UTC" });
+  const offsetHours = Math.round((new Date(utcStr).getTime() - new Date(laStr).getTime()) / 3600000);
+  return new Date(Date.UTC(year, month - 1, day, offsetHours, 0, 0));
+}
+
 function getLADateRange(dayOffset: number, days: number = 1) {
   const now = new Date();
   const laDateStr = now.toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
   const [year, month, day] = laDateStr.split("-").map(Number);
-  const startLA = new Date(Date.UTC(year, month - 1, day + dayOffset, 8, 0, 0));
-  const endLA = new Date(Date.UTC(year, month - 1, day + dayOffset + days, 8, 0, 0));
-  return { from: startLA, to: endLA };
+  // Each boundary is calculated independently so DST transitions are handled correctly
+  const from = getLAMidnightUTC(year, month, day + dayOffset);
+  const to = getLAMidnightUTC(year, month, day + dayOffset + days);
+  return { from, to };
 }
 
 const PAGE_SIZE = 50;
