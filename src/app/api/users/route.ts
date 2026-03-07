@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { storage } from "@/lib/storage";
 import { CreateUserSchema } from "@/lib/validations";
+import { getAdminClient } from "@/lib/supabase/admin";
 import bcrypt from "bcryptjs";
 
 export async function GET() {
@@ -17,6 +18,7 @@ export async function GET() {
     const usersWithStores = allUsers.map((u) => ({
       id: u.id,
       username: u.username,
+      email: u.email,
       name: u.name,
       role: u.role,
       storeId: u.storeId,
@@ -44,7 +46,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { username, password, name, role, storeId } = parsed.data;
+    const { email, password, name, role, storeId } = parsed.data;
 
     // Non-admin users must have a storeId
     if (role !== "admin" && !storeId) {
@@ -54,27 +56,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check for existing username
-    const existing = await storage.getUserByUsername(username);
-    if (existing) {
+    // Create Supabase Auth user
+    const supabaseAdmin = getAdminClient();
+    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+    });
+
+    if (authError) {
       return NextResponse.json(
-        { error: "Username already exists" },
+        { error: `Failed to create auth user: ${authError.message}` },
         { status: 400 }
       );
     }
 
+    // Create CA_users record with Supabase UID
     const hashedPassword = await bcrypt.hash(password, 12);
-
     const user = await storage.createUser({
-      username,
+      username: email,
       password: hashedPassword,
+      email,
+      supabaseUid: authUser.user.id,
       name,
       role: role ?? "gm",
       storeId: storeId ?? null,
     });
 
     return NextResponse.json(
-      { id: user.id, username: user.username, name: user.name, role: user.role, storeId: user.storeId },
+      { id: user.id, username: user.username, email: user.email, name: user.name, role: user.role, storeId: user.storeId },
       { status: 201 }
     );
   } catch (error) {

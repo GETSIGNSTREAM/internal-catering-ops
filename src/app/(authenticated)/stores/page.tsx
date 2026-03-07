@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/components/providers/supabase-auth-provider";
 import { motion } from "framer-motion";
 import {
   Store as StoreIcon,
@@ -22,8 +22,7 @@ interface Store {
 }
 
 export default function StoresPage() {
-  const { data: session } = useSession();
-  const user = session?.user;
+  const { user } = useAuth();
   const router = useRouter();
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/components/providers/supabase-auth-provider";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -56,8 +56,7 @@ interface Checklist {
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { data: session } = useSession();
-  const user = session?.user;
+  const { user } = useAuth();
   const { t } = useTranslation();
   const [order, setOrder] = useState<Order | null>(null);
   const [checklists, setChecklists] = useState<Checklist[]>([]);

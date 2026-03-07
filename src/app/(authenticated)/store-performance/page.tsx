@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/components/providers/supabase-auth-provider";
 import { Trophy, ArrowLeft, DollarSign, Package, Clock } from "lucide-react";
 
 interface StorePerformance {
@@ -21,8 +21,7 @@ function formatCurrency(cents: number): string {
 
 export default function StorePerformancePage() {
   const router = useRouter();
-  const { data: session } = useSession();
-  const user = session?.user;
+  const { user } = useAuth();
 
   const [stores, setStores] = useState<StorePerformance[]>([]);
   const [loading, setLoading] = useState(true);

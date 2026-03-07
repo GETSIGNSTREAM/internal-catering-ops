@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useSession, signOut } from 'next-auth/react';
+import { useAuth } from '@/components/providers/supabase-auth-provider';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
@@ -22,7 +22,7 @@ interface Stats {
 }
 
 export default function DashboardPage() {
-  const { data: session } = useSession();
+  const { user, signOut } = useAuth();
   const router = useRouter();
   const { t } = useTranslation();
   const [stats, setStats] = useState<Stats | null>(null);
@@ -98,8 +98,8 @@ export default function DashboardPage() {
             <h1 className="text-xl font-bold text-white">{t('dashboard.title')}</h1>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-400">{session?.user?.name}</span>
-            <button onClick={() => signOut({ callbackUrl: "/login" })} className="text-gray-400 hover:text-white text-sm">
+            <span className="text-sm text-gray-400">{user?.name}</span>
+            <button onClick={() => signOut()} className="text-gray-400 hover:text-white text-sm">
               {t('common.logout')}
             </button>
           </div>
@@ -152,7 +152,7 @@ export default function DashboardPage() {
                   <Plus size={20} className="text-chicken-primary" />
                   <span>{t('dashboard.createNewOrder')}</span>
                 </motion.button>
-                {session?.user?.role === 'admin' && (
+                {user?.role === 'admin' && (
                   <>
                     <motion.button
                       onClick={() => router.push('/stores')}
@@ -186,7 +186,7 @@ export default function DashboardPage() {
                   <BarChart3 size={20} className="text-chicken-primary" />
                   <span>{t('dashboard.salesReports')}</span>
                 </motion.button>
-                {session?.user?.role === 'admin' && (
+                {user?.role === 'admin' && (
                   <motion.button
                     onClick={() => router.push('/store-performance')}
                     className="w-full bg-dark-600 hover:bg-dark-500 text-white py-3 px-4 rounded-xl flex items-center gap-3 transition-colors"
@@ -204,7 +204,7 @@ export default function DashboardPage() {
               <div className="space-y-4">
                 <LanguageToggle />
                 <NotificationSettings />
-                {session?.user?.role === 'admin' && (
+                {user?.role === 'admin' && (
                   <div className="flex items-center justify-between py-2">
                     <div className="flex items-center gap-3">
                       <Camera size={20} className="text-chicken-primary" />
@@ -226,7 +226,7 @@ export default function DashboardPage() {
                     </button>
                   </div>
                 )}
-                {session?.user?.role === 'admin' && (
+                {user?.role === 'admin' && (
                   <div className="py-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">

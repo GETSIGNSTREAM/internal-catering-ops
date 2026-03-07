@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { storage } from "@/lib/storage";
+import { getAdminClient } from "@/lib/supabase/admin";
 import bcrypt from "bcryptjs";
 
 export async function PATCH(
@@ -16,8 +17,14 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid user ID" }, { status: 400 });
     }
 
+    const existingUser = await storage.getUser(id);
+    if (!existingUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
     const body = await request.json();
     const updateData: Record<string, any> = {};
+    const supabaseUpdates: Record<string, any> = {};
 
     // Handle name update
     if (body.name !== undefined) {
@@ -27,22 +34,14 @@ export async function PATCH(
       updateData.name = body.name;
     }
 
-    // Handle username update (check uniqueness)
-    if (body.username !== undefined) {
-      if (typeof body.username !== "string" || body.username.length < 3) {
-        return NextResponse.json(
-          { error: "Username must be at least 3 characters" },
-          { status: 400 }
-        );
+    // Handle email update
+    if (body.email !== undefined) {
+      if (typeof body.email !== "string" || !body.email.includes("@")) {
+        return NextResponse.json({ error: "Valid email is required" }, { status: 400 });
       }
-      const existing = await storage.getUserByUsername(body.username);
-      if (existing && existing.id !== id) {
-        return NextResponse.json(
-          { error: "Username already exists" },
-          { status: 400 }
-        );
-      }
-      updateData.username = body.username;
+      updateData.email = body.email;
+      updateData.username = body.email;
+      supabaseUpdates.email = body.email;
     }
 
     // Handle role update
@@ -58,7 +57,7 @@ export async function PATCH(
       updateData.storeId = body.storeId;
     }
 
-    // Handle password update (hash if provided)
+    // Handle password update
     if (body.password !== undefined) {
       if (typeof body.password !== "string" || body.password.length < 6) {
         return NextResponse.json(
@@ -67,10 +66,17 @@ export async function PATCH(
         );
       }
       updateData.password = await bcrypt.hash(body.password, 12);
+      supabaseUpdates.password = body.password;
     }
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json({ error: "No fields to update" }, { status: 400 });
+    }
+
+    // Sync changes to Supabase Auth
+    if (Object.keys(supabaseUpdates).length > 0 && existingUser.supabaseUid) {
+      const supabaseAdmin = getAdminClient();
+      await supabaseAdmin.auth.admin.updateUserById(existingUser.supabaseUid, supabaseUpdates);
     }
 
     const updated = await storage.updateUser(id, updateData);
@@ -81,6 +87,7 @@ export async function PATCH(
     return NextResponse.json({
       id: updated.id,
       username: updated.username,
+      email: updated.email,
       name: updated.name,
       role: updated.role,
       storeId: updated.storeId,
@@ -110,6 +117,13 @@ export async function DELETE(
         { error: "Cannot delete your own account" },
         { status: 400 }
       );
+    }
+
+    // Delete from Supabase Auth first
+    const existingUser = await storage.getUser(id);
+    if (existingUser?.supabaseUid) {
+      const supabaseAdmin = getAdminClient();
+      await supabaseAdmin.auth.admin.deleteUser(existingUser.supabaseUid);
     }
 
     const deleted = await storage.deleteUser(id);

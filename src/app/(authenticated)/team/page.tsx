@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/components/providers/supabase-auth-provider";
 import { motion } from "framer-motion";
 import { Users, MapPin, ArrowLeft } from "lucide-react";
 import { OrderListSkeleton } from "@/components/ui/Skeleton";
@@ -24,8 +24,7 @@ interface Store {
 }
 
 export default function TeamPage() {
-  const { data: session } = useSession();
-  const user = session?.user;
+  const { user } = useAuth();
   const router = useRouter();
   const [team, setTeam] = useState<User[]>([]);
   const [stores, setStores] = useState<Store[]>([]);

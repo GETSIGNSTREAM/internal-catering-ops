@@ -1,17 +1,17 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/components/providers/supabase-auth-provider";
 
 export default function LanguageToggle() {
   const { t, i18n } = useTranslation();
-  const { update } = useSession();
+  const { updateLanguage } = useAuth();
 
   const currentLang = i18n.language;
 
   const handleChange = async (lang: string) => {
     i18n.changeLanguage(lang);
-    await update({ language: lang });
+    await updateLanguage(lang);
   };
 
   return (

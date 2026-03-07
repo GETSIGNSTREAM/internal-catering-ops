@@ -1,18 +1,18 @@
 "use client";
 
 import { useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/components/providers/supabase-auth-provider";
 import "@/i18n";
 import i18n from "@/i18n";
 
 export default function I18nProvider({ children }: { children: React.ReactNode }) {
-  const { data: session } = useSession();
+  const { user } = useAuth();
 
   useEffect(() => {
-    if (session?.user?.language && i18n.language !== session.user.language) {
-      i18n.changeLanguage(session.user.language);
+    if (user?.language && i18n.language !== user.language) {
+      i18n.changeLanguage(user.language);
     }
-  }, [session?.user?.language]);
+  }, [user?.language]);
 
   return <>{children}</>;
 }

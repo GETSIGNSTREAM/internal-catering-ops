@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import AuthSessionProvider from "@/components/providers/session-provider";
+import SupabaseAuthProvider from "@/components/providers/supabase-auth-provider";
 import I18nProvider from "@/components/providers/i18n-provider";
 import { ServiceWorkerRegister } from "@/components/providers/sw-register";
 
@@ -37,9 +37,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.className} antialiased bg-dark-900`}>
-        <AuthSessionProvider>
+        <SupabaseAuthProvider>
           <I18nProvider>{children}</I18nProvider>
-        </AuthSessionProvider>
+        </SupabaseAuthProvider>
         <ServiceWorkerRegister />
       </body>
     </html>

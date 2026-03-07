@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/components/providers/supabase-auth-provider';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { Calendar, Truck, Store, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -22,7 +22,7 @@ interface Order {
 }
 
 export default function CalendarPage() {
-  const { data: session } = useSession();
+  const { user } = useAuth();
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);

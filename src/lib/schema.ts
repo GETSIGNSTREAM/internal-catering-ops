@@ -7,6 +7,8 @@ export const users = pgTable("CA_users", {
   password: text("password").notNull(),
   role: text("role").notNull().default("gm"),
   name: text("name").notNull(),
+  email: text("email").unique(),
+  supabaseUid: text("supabase_uid").unique(),
   storeId: integer("store_id"),
   language: text("language").default("en"),
   createdAt: timestamp("created_at").defaultNow()

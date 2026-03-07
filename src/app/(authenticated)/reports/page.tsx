@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/components/providers/supabase-auth-provider";
 import { useTranslation } from "react-i18next";
 import { BarChart3, DollarSign, Package, ArrowLeft } from "lucide-react";
 
@@ -27,8 +27,7 @@ function formatCurrency(cents: number): string {
 
 export default function ReportsPage() {
   const router = useRouter();
-  const { data: session } = useSession();
-  const user = session?.user;
+  const { user } = useAuth();
   const { t } = useTranslation();
 
   const [reports, setReports] = useState<ReportsData | null>(null);

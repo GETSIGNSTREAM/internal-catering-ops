@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useSession, signOut } from "next-auth/react";
+import { useAuth } from "@/components/providers/supabase-auth-provider";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { Plus, Calendar, ListFilter, MapPin, ChevronDown } from "lucide-react";
@@ -46,8 +46,7 @@ function getLADateRange(dayOffset: number, days: number = 1) {
 const PAGE_SIZE = 50;
 
 export default function OrdersPage() {
-  const { data: session } = useSession();
-  const user = session?.user;
+  const { user, signOut } = useAuth();
   const { t } = useTranslation();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -166,7 +165,7 @@ export default function OrdersPage() {
           </div>
           <div className="flex items-center gap-3">
             <span className="text-sm text-gray-400">{user?.name}</span>
-            <button onClick={() => signOut({ callbackUrl: "/login" })} className="text-gray-400 hover:text-white text-sm">{t("common.logout")}</button>
+            <button onClick={() => signOut()} className="text-gray-400 hover:text-white text-sm">{t("common.logout")}</button>
           </div>
         </div>
 
