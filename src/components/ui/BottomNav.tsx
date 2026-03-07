@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "@/components/providers/supabase-auth-provider";
 import {
   ClipboardList, Calendar, LayoutDashboard, StickyNote, Truck,
-  Shield, Users, Check,
+  Shield, Users, Check, Store, ChevronRight, ArrowLeft,
 } from "lucide-react";
 
 /** WILDBIRD bird-feet logo (actual brand asset) */
@@ -22,6 +22,11 @@ function WildbirdLogo({ size = 28 }: { size?: number }) {
   );
 }
 
+interface StoreOption {
+  id: number;
+  name: string;
+}
+
 const ROLE_OPTIONS = [
   { value: "admin", label: "Admin", icon: Shield },
   { value: "gm", label: "Manager", icon: Users },
@@ -32,8 +37,11 @@ export default function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
   const { t } = useTranslation();
-  const { user, effectiveRole, actualRole, setViewAs } = useAuth();
+  const { effectiveRole, actualRole, setViewAs } = useAuth();
   const [showRolePicker, setShowRolePicker] = useState(false);
+  const [showStorePicker, setShowStorePicker] = useState(false);
+  const [storeOptions, setStoreOptions] = useState<StoreOption[]>([]);
+  const [loadingStores, setLoadingStores] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
 
   const notesUrl = "https://www.icloud.com/notes/0e4btpmmAnAk2Eoii2LRIYKdg#CATERING_ORDERS:";
@@ -43,21 +51,114 @@ export default function BottomNav() {
     function handleClickOutside(e: MouseEvent) {
       if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
         setShowRolePicker(false);
+        setShowStorePicker(false);
       }
     }
-    if (showRolePicker) {
+    if (showRolePicker || showStorePicker) {
       document.addEventListener("mousedown", handleClickOutside);
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
-  }, [showRolePicker]);
+  }, [showRolePicker, showStorePicker]);
 
   const isAdmin = actualRole === "admin";
   const currentViewRole = effectiveRole || "admin";
 
   const handleRoleSelect = async (role: string) => {
+    if (role === currentViewRole) {
+      setShowRolePicker(false);
+      return;
+    }
+
+    if (role === "gm") {
+      // Show store picker for GM view
+      setLoadingStores(true);
+      setShowStorePicker(true);
+      try {
+        const res = await fetch("/api/stores");
+        const stores = await res.json();
+        setStoreOptions(stores);
+      } catch {
+        setStoreOptions([]);
+      } finally {
+        setLoadingStores(false);
+      }
+      return;
+    }
+
     setShowRolePicker(false);
-    if (role === currentViewRole) return;
+    setShowStorePicker(false);
     await setViewAs(role === "admin" ? null : role);
+  };
+
+  const handleStoreSelect = async (storeId: number) => {
+    setShowRolePicker(false);
+    setShowStorePicker(false);
+    await setViewAs("gm", storeId);
+  };
+
+  const handleBackToRoles = () => {
+    setShowStorePicker(false);
+  };
+
+  // Render the role/store picker popup
+  const renderPicker = () => {
+    if (!showRolePicker && !showStorePicker) return null;
+
+    return (
+      <div className="absolute bottom-full mb-2 right-0 bg-dark-700 border border-dark-500 rounded-xl shadow-xl p-1 min-w-[180px] z-50">
+        {showStorePicker ? (
+          <>
+            <button
+              onClick={handleBackToRoles}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-gray-400 hover:bg-dark-600 transition-colors mb-1"
+            >
+              <ArrowLeft size={14} />
+              <span className="text-xs font-medium">Back</span>
+            </button>
+            <p className="px-3 py-1 text-[10px] uppercase font-bold text-gray-500 tracking-wider">Select Store</p>
+            {loadingStores ? (
+              <p className="px-3 py-2.5 text-sm text-gray-400">Loading...</p>
+            ) : storeOptions.length === 0 ? (
+              <p className="px-3 py-2.5 text-sm text-gray-400">No stores found</p>
+            ) : (
+              storeOptions.map((store) => (
+                <button
+                  key={store.id}
+                  onClick={() => handleStoreSelect(store.id)}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-gray-300 hover:bg-dark-600"
+                >
+                  <Store size={16} />
+                  <span className="flex-1 text-left text-sm font-medium">{store.name}</span>
+                </button>
+              ))
+            )}
+          </>
+        ) : (
+          ROLE_OPTIONS.map((opt) => {
+            const Icon = opt.icon;
+            const isSelected = currentViewRole === opt.value;
+            return (
+              <button
+                key={opt.value}
+                onClick={() => handleRoleSelect(opt.value)}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                  isSelected
+                    ? "bg-chicken-primary/20 text-chicken-primary"
+                    : "text-gray-300 hover:bg-dark-600"
+                }`}
+              >
+                <Icon size={18} />
+                <span className="flex-1 text-left text-sm font-medium">{opt.label}</span>
+                {opt.value === "gm" && !isSelected && (
+                  <ChevronRight size={14} className="text-gray-500" />
+                )}
+                {isSelected && <Check size={16} />}
+              </button>
+            );
+          })
+        )}
+      </div>
+    );
   };
 
   // Driver nav — simplified
@@ -91,37 +192,16 @@ export default function BottomNav() {
           {isAdmin && (
             <div className="relative" ref={pickerRef}>
               <button
-                onClick={() => setShowRolePicker(!showRolePicker)}
+                onClick={() => {
+                  setShowRolePicker(!showRolePicker);
+                  setShowStorePicker(false);
+                }}
                 className="flex flex-col items-center justify-center w-full h-full transition-colors text-chicken-primary hover:text-chicken-light"
               >
                 <WildbirdLogo size={26} />
                 <span className="text-[10px] font-medium mt-0.5">Switch</span>
               </button>
-
-              {/* Role picker popup */}
-              {showRolePicker && (
-                <div className="absolute bottom-full mb-2 right-0 bg-dark-700 border border-dark-500 rounded-xl shadow-xl p-1 min-w-[160px] z-50">
-                  {ROLE_OPTIONS.map((opt) => {
-                    const Icon = opt.icon;
-                    const isSelected = currentViewRole === opt.value;
-                    return (
-                      <button
-                        key={opt.value}
-                        onClick={() => handleRoleSelect(opt.value)}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                          isSelected
-                            ? "bg-chicken-primary/20 text-chicken-primary"
-                            : "text-gray-300 hover:bg-dark-600"
-                        }`}
-                      >
-                        <Icon size={18} />
-                        <span className="flex-1 text-left text-sm font-medium">{opt.label}</span>
-                        {isSelected && <Check size={16} />}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+              {renderPicker()}
             </div>
           )}
         </div>
@@ -160,37 +240,16 @@ export default function BottomNav() {
         {isAdmin ? (
           <div className="relative" ref={pickerRef}>
             <button
-              onClick={() => setShowRolePicker(!showRolePicker)}
+              onClick={() => {
+                setShowRolePicker(!showRolePicker);
+                setShowStorePicker(false);
+              }}
               className="flex flex-col items-center justify-center w-full h-full transition-colors text-chicken-primary hover:text-chicken-light"
             >
               <WildbirdLogo size={26} />
               <span className="text-[10px] font-medium mt-0.5">Switch</span>
             </button>
-
-            {/* Role picker popup */}
-            {showRolePicker && (
-              <div className="absolute bottom-full mb-2 right-0 bg-dark-700 border border-dark-500 rounded-xl shadow-xl p-1 min-w-[160px] z-50">
-                {ROLE_OPTIONS.map((opt) => {
-                  const Icon = opt.icon;
-                  const isSelected = currentViewRole === opt.value;
-                  return (
-                    <button
-                      key={opt.value}
-                      onClick={() => handleRoleSelect(opt.value)}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                        isSelected
-                          ? "bg-chicken-primary/20 text-chicken-primary"
-                          : "text-gray-300 hover:bg-dark-600"
-                      }`}
-                    >
-                      <Icon size={18} />
-                      <span className="flex-1 text-left text-sm font-medium">{opt.label}</span>
-                      {isSelected && <Check size={16} />}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+            {renderPicker()}
           </div>
         ) : (
           <a

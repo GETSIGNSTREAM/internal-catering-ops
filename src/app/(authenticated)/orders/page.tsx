@@ -56,7 +56,7 @@ function getLADateRange(dayOffset: number, days: number = 1) {
 const PAGE_SIZE = 50;
 
 export default function OrdersPage() {
-  const { user, signOut } = useAuth();
+  const { user, effectiveRole, signOut } = useAuth();
   const { t } = useTranslation();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,12 +67,21 @@ export default function OrdersPage() {
   const [locationFilter, setLocationFilter] = useState<string>("all");
   const [stores, setStores] = useState<Store[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [serverStats, setServerStats] = useState<{ totalSales: number; nativeSales: number } | null>(null);
 
-  const isAdmin = user?.role === "admin";
+  const isAdmin = effectiveRole === "admin";
 
+  // Load stores for the location filter (admin only)
   useEffect(() => {
     if (isAdmin) {
       fetch("/api/stores").then((res) => res.json()).then((data) => setStores(data)).catch(() => {});
+    }
+  }, [isAdmin]);
+
+  // Reset location filter when switching away from admin view
+  useEffect(() => {
+    if (!isAdmin) {
+      setLocationFilter("all");
     }
   }, [isAdmin]);
 
@@ -81,7 +90,7 @@ export default function OrdersPage() {
       const params = new URLSearchParams();
       params.append("limit", String(PAGE_SIZE));
       params.append("offset", String(offset));
-      if (user?.role === "driver") {
+      if (effectiveRole === "driver") {
         params.append("deliveryMode", "delivery");
       } else {
         if (dateFilter === "today") {
@@ -102,7 +111,7 @@ export default function OrdersPage() {
       if (isAdmin && locationFilter !== "all") params.append("storeId", locationFilter);
       return params;
     },
-    [user?.role, dateFilter, statusFilter, isAdmin, locationFilter]
+    [effectiveRole, dateFilter, statusFilter, isAdmin, locationFilter]
   );
 
   // Sync from Neon (Replit) in the background — runs once per page load
@@ -124,9 +133,11 @@ export default function OrdersPage() {
       if (Array.isArray(data)) {
         setOrders(data);
         setTotalOrders(data.length);
+        setServerStats(null);
       } else {
         setOrders(data.orders || []);
         setTotalOrders(data.total || 0);
+        setServerStats(data.stats || null);
       }
     } catch {
       console.error("Failed to fetch orders");
@@ -150,11 +161,14 @@ export default function OrdersPage() {
     }
   };
 
+  // Use server-side aggregates for accurate stats across ALL matching orders
+  const totalSales = serverStats?.totalSales ?? orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+  const nativeSales = serverStats?.nativeSales ?? orders.filter((o) => o.orderSource === "eatwildbird.com").reduce((sum, o) => sum + (o.totalAmount || 0), 0);
   const stats = {
-    count: orders.length,
-    totalSales: orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0),
-    nativeSales: orders.filter((o) => o.orderSource === "eatwildbird.com").reduce((sum, o) => sum + (o.totalAmount || 0), 0),
-    avgTicket: orders.length > 0 ? orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0) / orders.length : 0,
+    count: totalOrders,
+    totalSales,
+    nativeSales,
+    avgTicket: totalOrders > 0 ? totalSales / totalOrders : 0,
   };
 
   // Sync from Neon on initial load, then just fetch on filter changes
@@ -167,7 +181,7 @@ export default function OrdersPage() {
     } else {
       fetchOrders(false); // just fetch on filter changes
     }
-  }, [dateFilter, statusFilter, locationFilter]);
+  }, [dateFilter, statusFilter, locationFilter, effectiveRole]);
 
   const dateFilters = [
     { value: "today", label: t("orders.today") },
@@ -282,7 +296,7 @@ export default function OrdersPage() {
           <CreateOrderModal
             onClose={() => setShowCreateModal(false)}
             onCreated={() => { setShowCreateModal(false); fetchOrders(); }}
-            isAdmin={user?.role === "admin"}
+            isAdmin={effectiveRole === "admin"}
           />
         )}
       </AnimatePresence>

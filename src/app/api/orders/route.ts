@@ -42,20 +42,35 @@ export async function GET(request: NextRequest) {
     const offsetParam = searchParams.get("offset");
     filters.offset = offsetParam ? parseInt(offsetParam, 10) || 0 : 0;
 
-    // Non-admin users: filter by role
-    if (auth.session.user.role === "driver") {
+    // Role-based filtering using effectiveRole (respects viewAs)
+    const effectiveRole = auth.session.user.effectiveRole;
+
+    if (effectiveRole === "driver") {
       // Drivers see only orders assigned to them
       filters.driverId = parseInt(auth.session.user.id, 10);
-    } else if (auth.session.user.role !== "admin") {
+    } else if (effectiveRole !== "admin") {
       // GMs see only orders assigned to their store
+      // storeId already reflects viewAsStoreId for admins in GM mode
       if (auth.session.user.storeId) {
         filters.storeId = auth.session.user.storeId;
       } else {
-        return NextResponse.json({ orders: [], total: 0, limit: filters.limit, offset: filters.offset });
+        return NextResponse.json({
+          orders: [], total: 0, limit: filters.limit, offset: filters.offset,
+          stats: { totalSales: 0, nativeSales: 0 },
+        });
+      }
+    } else {
+      // Admin: respect the storeId query param from the location filter
+      const storeIdParam = searchParams.get("storeId");
+      if (storeIdParam) {
+        filters.storeId = parseInt(storeIdParam, 10);
       }
     }
 
-    const result = await storage.getOrders(filters);
+    const [result, aggregates] = await Promise.all([
+      storage.getOrders(filters),
+      storage.getOrderAggregates(filters),
+    ]);
 
     // Join store names
     const allStores = await storage.getStores();
@@ -71,6 +86,10 @@ export async function GET(request: NextRequest) {
       total: result.total,
       limit: result.limit,
       offset: result.offset,
+      stats: {
+        totalSales: aggregates.totalSales,
+        nativeSales: aggregates.nativeSales,
+      },
     });
   } catch (error) {
     console.error("Error fetching orders:", error);

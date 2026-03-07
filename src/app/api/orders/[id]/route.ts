@@ -22,13 +22,14 @@ export async function GET(
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    // Check access for non-admin users
-    if (auth.session.user.role === "driver") {
+    // Check access using effectiveRole (respects viewAs)
+    const effectiveRole = auth.session.user.effectiveRole;
+    if (effectiveRole === "driver") {
       // Drivers can only see orders assigned to them
       if (order.assignedDriverId !== parseInt(auth.session.user.id, 10)) {
         return NextResponse.json({ error: "Access denied" }, { status: 403 });
       }
-    } else if (auth.session.user.role !== "admin") {
+    } else if (effectiveRole !== "admin") {
       // GMs can only see orders for their store
       if (order.assignedStoreId !== auth.session.user.storeId) {
         return NextResponse.json({ error: "Access denied" }, { status: 403 });
@@ -67,12 +68,13 @@ export async function PATCH(
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    // Check access for non-admin users
-    if (auth.session.user.role === "driver") {
+    // Check access using effectiveRole (respects viewAs)
+    const effectiveRole = auth.session.user.effectiveRole;
+    if (effectiveRole === "driver") {
       if (existingOrder.assignedDriverId !== parseInt(auth.session.user.id, 10)) {
         return NextResponse.json({ error: "Access denied" }, { status: 403 });
       }
-    } else if (auth.session.user.role !== "admin") {
+    } else if (effectiveRole !== "admin") {
       if (existingOrder.assignedStoreId !== auth.session.user.storeId) {
         return NextResponse.json({ error: "Access denied" }, { status: 403 });
       }

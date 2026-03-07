@@ -89,6 +89,11 @@ export interface SalesReport {
   avgOrderValue: number;
 }
 
+export interface OrderAggregates {
+  totalSales: number;
+  nativeSales: number;
+}
+
 export interface StorePerformance {
   storeId: number;
   storeName: string;
@@ -163,7 +168,7 @@ export class DatabaseStorage implements IStorage {
     return order || undefined;
   }
 
-  async getOrders(filters?: OrderFilters): Promise<PaginatedOrders> {
+  private buildOrderConditions(filters?: OrderFilters): any[] {
     const conditions: any[] = [];
 
     if (filters?.status) {
@@ -201,6 +206,11 @@ export class DatabaseStorage implements IStorage {
       );
     }
 
+    return conditions;
+  }
+
+  async getOrders(filters?: OrderFilters): Promise<PaginatedOrders> {
+    const conditions = this.buildOrderConditions(filters);
     const limit = filters?.limit ?? 50;
     const offset = filters?.offset ?? 0;
     const orderDateTime = sql`COALESCE(${orders.deliveryTime}, ${orders.pickupTime})`;
@@ -222,6 +232,24 @@ export class DatabaseStorage implements IStorage {
       total: totalCount,
       limit,
       offset,
+    };
+  }
+
+  async getOrderAggregates(filters?: OrderFilters): Promise<OrderAggregates> {
+    const conditions = this.buildOrderConditions(filters);
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const [result] = await db
+      .select({
+        totalSales: sql<number>`COALESCE(SUM(${orders.totalAmount}), 0)`,
+        nativeSales: sql<number>`COALESCE(SUM(CASE WHEN ${orders.orderSource} = 'eatwildbird.com' THEN ${orders.totalAmount} ELSE 0 END), 0)`,
+      })
+      .from(orders)
+      .where(whereClause);
+
+    return {
+      totalSales: Number(result.totalSales),
+      nativeSales: Number(result.nativeSales),
     };
   }
 

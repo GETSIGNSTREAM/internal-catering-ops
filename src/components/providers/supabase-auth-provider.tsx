@@ -12,6 +12,7 @@ interface CaUserSession {
   storeId: number | null;
   language: string;
   viewAsRole?: string;
+  viewAsStoreId?: number;
 }
 
 interface AuthContextType {
@@ -23,8 +24,8 @@ interface AuthContextType {
   actualRole: string | null;
   signOut: () => Promise<void>;
   updateLanguage: (lang: string) => Promise<void>;
-  /** Switch view to a different role (admin only). Pass null to reset. */
-  setViewAs: (role: string | null) => Promise<void>;
+  /** Switch view to a different role (admin only). Pass null to reset. Optionally pass storeId for GM view. */
+  setViewAs: (role: string | null, storeId?: number | null) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -88,11 +89,11 @@ export default function SupabaseAuthProvider({ children }: { children: React.Rea
     setUser((prev) => (prev ? { ...prev, language: lang } : null));
   };
 
-  const setViewAs = async (role: string | null) => {
+  const setViewAs = async (role: string | null, storeId?: number | null) => {
     await fetch("/api/auth/view-as", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role }),
+      body: JSON.stringify({ role, ...(storeId && { storeId }) }),
     });
     // Reload to trigger middleware re-evaluation with new cookie
     window.location.reload();

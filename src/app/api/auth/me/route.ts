@@ -14,6 +14,11 @@ export async function GET(request: NextRequest) {
   const viewAsCookie = request.cookies.get("viewAsRole")?.value;
   const viewAsRole = (caUser.role === "admin" && viewAsCookie) ? viewAsCookie : null;
 
+  const viewAsStoreIdCookie = request.cookies.get("viewAsStoreId")?.value;
+  const viewAsStoreId = (caUser.role === "admin" && viewAsRole === "gm" && viewAsStoreIdCookie)
+    ? parseInt(viewAsStoreIdCookie, 10)
+    : null;
+
   return NextResponse.json({
     id: String(caUser.id),
     username: caUser.username,
@@ -22,6 +27,7 @@ export async function GET(request: NextRequest) {
     storeId: caUser.storeId,
     language: caUser.language || "en",
     ...(viewAsRole && { viewAsRole }),
+    ...(viewAsStoreId && { viewAsStoreId }),
   });
 }
 

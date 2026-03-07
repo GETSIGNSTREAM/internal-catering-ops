@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
   const auth = await requireAuth();
   if ("error" in auth) return auth.error;
 
-  if (auth.session.user.role !== "driver" && auth.session.user.role !== "admin") {
+  if (auth.session.user.effectiveRole !== "driver" && auth.session.user.role !== "admin") {
     return NextResponse.json({ error: "Driver access required" }, { status: 403 });
   }
 
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
   try {
     let driverId: number;
 
-    if (auth.session.user.role === "admin") {
+    if (auth.session.user.role === "admin" || auth.session.user.effectiveRole === "admin") {
       const { searchParams } = new URL(request.url);
       const paramId = searchParams.get("driverId");
       driverId = paramId ? parseInt(paramId, 10) : parseInt(auth.session.user.id, 10);
