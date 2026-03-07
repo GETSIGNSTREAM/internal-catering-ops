@@ -8,6 +8,7 @@ import { Plus, Calendar, ListFilter, MapPin, ChevronDown } from "lucide-react";
 import OrderCard from "@/components/orders/OrderCard";
 import CreateOrderModal from "@/components/orders/CreateOrderModal";
 import FilterSelect from "@/components/ui/FilterSelect";
+import RoleSwitcher from "@/components/ui/RoleSwitcher";
 import { OrderListSkeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageTransition } from "@/components/ui/PageTransition";
@@ -214,7 +215,8 @@ export default function OrdersPage() {
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold text-white">{t("orders.cateringOrders")}</h1>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <RoleSwitcher />
             <span className="text-sm text-gray-400">{user?.name}</span>
             <button onClick={() => signOut()} className="text-gray-400 hover:text-white text-sm">{t("common.logout")}</button>
           </div>
