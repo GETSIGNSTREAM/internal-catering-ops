@@ -9,11 +9,12 @@ let _db: ReturnType<typeof drizzle> | null = null;
 function getDb() {
   if (_db) return _db;
 
-  if (!process.env.DATABASE_URL) {
-    throw new Error("DATABASE_URL environment variable is required");
+  const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+  if (!connectionString) {
+    throw new Error("DATABASE_URL or POSTGRES_URL environment variable is required");
   }
 
-  const client = postgres(process.env.DATABASE_URL, { prepare: false });
+  const client = postgres(connectionString, { prepare: false });
   _db = drizzle(client, { schema });
   return _db;
 }
