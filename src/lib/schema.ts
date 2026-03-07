@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, index, doublePrecision } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 export const users = pgTable("CA_users", {
@@ -50,13 +50,19 @@ export const orders = pgTable("CA_orders", {
   labelsUrl: text("labels_url"),
   completedAt: timestamp("completed_at"),
   createdAt: timestamp("created_at").defaultNow(),
-  menuTbd: boolean("menu_tbd").default(false)
+  menuTbd: boolean("menu_tbd").default(false),
+  // Tracking fields
+  trackingToken: text("tracking_token").unique(),
+  assignedDriverId: integer("assigned_driver_id"),
+  trackingMilestone: text("tracking_milestone").default("confirmed"),
+  estimatedArrival: timestamp("estimated_arrival"),
 }, (table) => [
   index("idx_ca_orders_store").on(table.assignedStoreId),
   index("idx_ca_orders_status").on(table.status),
   index("idx_ca_orders_delivery_time").on(table.deliveryTime),
   index("idx_ca_orders_pickup_time").on(table.pickupTime),
   index("idx_ca_orders_created_at").on(table.createdAt),
+  index("idx_ca_orders_tracking_token").on(table.trackingToken),
 ]);
 
 export const orderChecklists = pgTable("CA_order_checklists", {
@@ -82,6 +88,34 @@ export const pushSubscriptions = pgTable("CA_push_subscriptions", {
   createdAt: timestamp("created_at").defaultNow()
 });
 
+// Tracking milestone history — audit trail for each status change
+export const trackingHistory = pgTable("CA_tracking_history", {
+  id: serial("id").primaryKey(),
+  orderId: integer("order_id").notNull(),
+  milestone: text("milestone").notNull(), // confirmed, preparing, packed, en_route, arriving, delivered
+  triggeredBy: integer("triggered_by"), // user_id who triggered
+  triggeredAt: timestamp("triggered_at").defaultNow(),
+  notes: text("notes"),
+}, (table) => [
+  index("idx_ca_tracking_history_order").on(table.orderId),
+]);
+
+// Driver GPS locations — high-frequency writes for live tracking
+export const driverLocations = pgTable("CA_driver_locations", {
+  id: serial("id").primaryKey(),
+  driverId: integer("driver_id").notNull(),
+  orderId: integer("order_id"),
+  latitude: doublePrecision("latitude").notNull(),
+  longitude: doublePrecision("longitude").notNull(),
+  accuracy: doublePrecision("accuracy"),
+  heading: doublePrecision("heading"),
+  speed: doublePrecision("speed"),
+  recordedAt: timestamp("recorded_at").defaultNow(),
+}, (table) => [
+  index("idx_ca_driver_locations_driver").on(table.driverId),
+  index("idx_ca_driver_locations_order").on(table.orderId),
+]);
+
 export const appSettings = pgTable("CA_app_settings", {
   id: serial("id").primaryKey(),
   key: text("key").unique().notNull(),
@@ -105,7 +139,35 @@ export const ordersRelations = relations(orders, ({ one, many }) => ({
     fields: [orders.assignedGmId],
     references: [users.id]
   }),
-  checklists: many(orderChecklists)
+  driver: one(users, {
+    fields: [orders.assignedDriverId],
+    references: [users.id],
+    relationName: "orderDriver"
+  }),
+  checklists: many(orderChecklists),
+  trackingHistory: many(trackingHistory),
+}));
+
+export const trackingHistoryRelations = relations(trackingHistory, ({ one }) => ({
+  order: one(orders, {
+    fields: [trackingHistory.orderId],
+    references: [orders.id]
+  }),
+  triggeredByUser: one(users, {
+    fields: [trackingHistory.triggeredBy],
+    references: [users.id]
+  })
+}));
+
+export const driverLocationsRelations = relations(driverLocations, ({ one }) => ({
+  driver: one(users, {
+    fields: [driverLocations.driverId],
+    references: [users.id]
+  }),
+  order: one(orders, {
+    fields: [driverLocations.orderId],
+    references: [orders.id]
+  })
 }));
 
 export const orderChecklistsRelations = relations(orderChecklists, ({ one }) => ({
@@ -135,3 +197,18 @@ export type OrderChecklist = typeof orderChecklists.$inferSelect;
 export type InsertOrderChecklist = typeof orderChecklists.$inferInsert;
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
 export type InsertPushSubscription = typeof pushSubscriptions.$inferInsert;
+export type TrackingHistory = typeof trackingHistory.$inferSelect;
+export type InsertTrackingHistory = typeof trackingHistory.$inferInsert;
+export type DriverLocation = typeof driverLocations.$inferSelect;
+export type InsertDriverLocation = typeof driverLocations.$inferInsert;
+
+// Tracking milestone enum
+export const TRACKING_MILESTONES = [
+  "confirmed",
+  "preparing",
+  "packed",
+  "en_route",
+  "arriving",
+  "delivered",
+] as const;
+export type TrackingMilestone = typeof TRACKING_MILESTONES[number];

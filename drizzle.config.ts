@@ -15,5 +15,7 @@ export default defineConfig({
     "CA_push_subscriptions",
     "CA_app_settings",
     "CA_user_sessions",
+    "CA_tracking_history",
+    "CA_driver_locations",
   ],
 });

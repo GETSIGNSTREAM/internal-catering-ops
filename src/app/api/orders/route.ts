@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/auth-helpers";
 import { storage } from "@/lib/storage";
 import { CreateOrderSchema } from "@/lib/validations";
 import { ALL_CHECKLIST_TASKS } from "@/lib/constants";
+import { generateTrackingToken } from "@/lib/tracking";
 import type { OrderFilters } from "@/lib/storage";
 
 export async function GET(request: NextRequest) {
@@ -41,8 +42,12 @@ export async function GET(request: NextRequest) {
     const offsetParam = searchParams.get("offset");
     filters.offset = offsetParam ? parseInt(offsetParam, 10) || 0 : 0;
 
-    // Non-admin users can only see orders assigned to their store
-    if (auth.session.user.role !== "admin") {
+    // Non-admin users: filter by role
+    if (auth.session.user.role === "driver") {
+      // Drivers see only orders assigned to them
+      filters.driverId = parseInt(auth.session.user.id, 10);
+    } else if (auth.session.user.role !== "admin") {
+      // GMs see only orders assigned to their store
       if (auth.session.user.storeId) {
         filters.storeId = auth.session.user.storeId;
       } else {
@@ -97,7 +102,18 @@ export async function POST(request: NextRequest) {
       readyTime: data.readyTime ? new Date(data.readyTime) : null,
     };
 
+    // Auto-generate tracking token for all orders
+    orderData.trackingToken = generateTrackingToken();
+    orderData.trackingMilestone = "confirmed";
+
     const order = await storage.createOrder(orderData as any);
+
+    // Create initial tracking history entry
+    await storage.createTrackingHistory({
+      orderId: order.id,
+      milestone: "confirmed",
+      triggeredBy: parseInt(auth.session.user.id, 10),
+    });
 
     // Create checklist tasks for this order
     for (const task of ALL_CHECKLIST_TASKS) {

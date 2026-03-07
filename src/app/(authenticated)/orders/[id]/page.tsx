@@ -8,7 +8,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, FileText, Tag, Star, Truck, Store, Clock, Phone, MapPin,
   DollarSign, ChefHat, ClipboardList, CheckCircle, Flame, Package,
-  Camera, StickyNote, FolderOpen, Check, Trash2, Upload, ImageIcon, X
+  Camera, StickyNote, FolderOpen, Check, Trash2, Upload, ImageIcon, X,
+  Share2, Copy, ExternalLink, Navigation, PartyPopper
 } from "lucide-react";
 import StatusPill from "@/components/ui/StatusPill";
 import EditOrderModal from "@/components/orders/EditOrderModal";
@@ -40,8 +41,11 @@ interface Order {
   pdfUrl?: string;
   labelsUrl?: string;
   assignedDriver?: string;
+  assignedDriverId?: number;
   photoProofUrl?: string;
   completedAt?: string;
+  trackingToken?: string;
+  trackingMilestone?: string;
 }
 
 interface Checklist {
@@ -69,8 +73,21 @@ export default function OrderDetailPage() {
   const [showDeletePhotoConfirm, setShowDeletePhotoConfirm] = useState(false);
   const [photoBlobUrl, setPhotoBlobUrl] = useState<string | null>(null);
   const [requirePhotoForDelivery, setRequirePhotoForDelivery] = useState(false);
+  const [trackingUrl, setTrackingUrl] = useState<string | null>(null);
+  const [generatingToken, setGeneratingToken] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [advancingMilestone, setAdvancingMilestone] = useState(false);
   const isDriver = user?.role === "driver";
   const isAdmin = user?.role === "admin";
+
+  const trackingMilestones = [
+    { value: "confirmed", label: "Confirmed", icon: CheckCircle, emoji: "\u2713" },
+    { value: "preparing", label: "Preparing", icon: Flame, emoji: "\ud83d\udd25" },
+    { value: "packed", label: "Packed", icon: Package, emoji: "\ud83d\udce6" },
+    { value: "en_route", label: "En Route", icon: Truck, emoji: "\ud83d\ude90" },
+    { value: "arriving", label: "Arriving", icon: MapPin, emoji: "\ud83d\udccd" },
+    { value: "delivered", label: "Delivered", icon: PartyPopper, emoji: "\ud83c\udf89" },
+  ];
 
   const prepStages = [
     { value: "new", label: t("orders.prepStatus.new"), icon: ClipboardList },
@@ -265,6 +282,68 @@ export default function OrderDetailPage() {
     }
   };
 
+  const handleGenerateTrackingLink = async () => {
+    if (!order) return;
+    setGeneratingToken(true);
+    try {
+      const res = await fetch(`/api/orders/${order.id}/tracking-token`, { method: "POST" });
+      if (res.ok) {
+        const data = await res.json();
+        setOrder((prev) => prev ? { ...prev, trackingToken: data.trackingToken } : null);
+        setTrackingUrl(data.trackingUrl);
+      }
+    } catch (error) {
+      console.error("Generate tracking token error:", error);
+    } finally {
+      setGeneratingToken(false);
+    }
+  };
+
+  const handleCopyTrackingLink = async () => {
+    const url = trackingUrl || (order?.trackingToken ? `${window.location.origin}/track/${order.trackingToken}` : null);
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+    } catch {
+      // Fallback for mobile
+      const input = document.createElement("input");
+      input.value = url;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand("copy");
+      document.body.removeChild(input);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+    }
+  };
+
+  const handleAdvanceMilestone = async (milestone: string) => {
+    if (!order || advancingMilestone) return;
+    setAdvancingMilestone(true);
+    try {
+      const res = await fetch(`/api/orders/${order.id}/milestone`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ milestone }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setOrder((prev) => prev ? {
+          ...prev,
+          trackingMilestone: milestone,
+          status: milestone === "delivered" ? "delivered" : prev.status,
+          prepStatus: milestone === "delivered" ? "delivered" : prev.prepStatus,
+        } : null);
+      }
+    } catch (error) {
+      console.error("Advance milestone error:", error);
+    } finally {
+      setAdvancingMilestone(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-dark-900 flex items-center justify-center">
@@ -426,6 +505,125 @@ export default function OrderDetailPage() {
             ))}
           </div>
         </section>
+
+        {/* ── Delivery Tracking Section ── */}
+        {order.deliveryMode === "delivery" && (
+          <section className="bg-dark-700 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-gray-400 flex items-center gap-2">
+                <Navigation size={16} /> Delivery Tracking
+              </h2>
+              {order.trackingToken ? (
+                <button
+                  onClick={handleCopyTrackingLink}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    copiedLink
+                      ? "bg-green-500/20 text-green-400"
+                      : "bg-chicken-primary/20 text-chicken-primary hover:bg-chicken-primary/30"
+                  }`}
+                >
+                  {copiedLink ? <Check size={14} /> : <Copy size={14} />}
+                  {copiedLink ? "Copied!" : "Copy Link"}
+                </button>
+              ) : (
+                <button
+                  onClick={handleGenerateTrackingLink}
+                  disabled={generatingToken}
+                  className="flex items-center gap-1.5 bg-chicken-primary text-dark-900 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-chicken-secondary transition-colors disabled:opacity-50"
+                >
+                  <Share2 size={14} />
+                  {generatingToken ? "Generating..." : "Enable Tracking"}
+                </button>
+              )}
+            </div>
+
+            {/* 6-Step Milestone Progress */}
+            <div className="flex items-center justify-between relative mb-4">
+              {/* Background track */}
+              <div className="absolute top-4 left-4 right-4 h-0.5 bg-dark-500" />
+              {/* Progress fill */}
+              {(() => {
+                const currentIdx = trackingMilestones.findIndex((m) => m.value === (order.trackingMilestone || "confirmed"));
+                return (
+                  <motion.div
+                    className="absolute top-4 left-4 h-0.5 bg-chicken-primary"
+                    initial={false}
+                    animate={{
+                      width: currentIdx >= 0
+                        ? `calc(${(currentIdx / (trackingMilestones.length - 1)) * 100}% - 32px)`
+                        : "0px",
+                    }}
+                    transition={{ duration: 0.6, ease: "easeInOut" }}
+                  />
+                );
+              })()}
+
+              {trackingMilestones.map((milestone, index) => {
+                const currentIdx = trackingMilestones.findIndex((m) => m.value === (order.trackingMilestone || "confirmed"));
+                const isActive = index <= currentIdx;
+                const isCurrent = index === currentIdx;
+                const isNext = index === currentIdx + 1;
+                const Icon = milestone.icon;
+
+                return (
+                  <motion.button
+                    key={milestone.value}
+                    onClick={() => (isAdmin || isDriver) && handleAdvanceMilestone(milestone.value)}
+                    disabled={advancingMilestone || (!isAdmin && !isDriver)}
+                    className="relative z-10 flex flex-col items-center"
+                    style={{ width: "48px" }}
+                    whileTap={(isAdmin || isDriver) ? { scale: 0.9 } : {}}
+                  >
+                    <motion.div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                        isCurrent
+                          ? "bg-chicken-primary text-dark-900 ring-4 ring-chicken-primary/30"
+                          : isActive
+                          ? "bg-chicken-primary text-dark-900"
+                          : isNext
+                          ? "bg-dark-500 text-gray-300 ring-2 ring-dashed ring-gray-500"
+                          : "bg-dark-500 text-gray-500"
+                      }`}
+                      animate={isCurrent ? { scale: [1, 1.1, 1] } : {}}
+                      transition={{ repeat: Infinity, duration: 2 }}
+                    >
+                      <Icon size={14} strokeWidth={2.5} />
+                    </motion.div>
+                    <span
+                      className={`text-[9px] mt-1 text-center font-medium leading-tight ${
+                        isActive ? "text-chicken-primary" : "text-gray-500"
+                      }`}
+                    >
+                      {milestone.label}
+                    </span>
+                  </motion.button>
+                );
+              })}
+            </div>
+
+            {/* Share tracking link */}
+            {order.trackingToken && (
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={() => window.open(`/track/${order.trackingToken}`, "_blank")}
+                  className="flex-1 flex items-center justify-center gap-2 bg-dark-600 text-gray-300 py-2.5 rounded-xl text-xs font-medium hover:bg-dark-500 transition-colors"
+                >
+                  <ExternalLink size={14} />
+                  Preview Tracking Page
+                </button>
+                {order.customerPhone && (
+                  <a
+                    href={`sms:${order.customerPhone}?body=Track your WILDBIRD catering order: ${window.location.origin}/track/${order.trackingToken}`}
+                    className="flex items-center justify-center gap-2 bg-green-600/20 text-green-400 px-4 py-2.5 rounded-xl text-xs font-medium hover:bg-green-600/30 transition-colors"
+                  >
+                    <Phone size={14} />
+                    SMS
+                  </a>
+                )}
+              </div>
+            )}
+          </section>
+        )}
 
         <section className="bg-dark-700 rounded-xl p-4">
           <h2 className="text-sm font-semibold text-gray-400 mb-4 flex items-center gap-2">

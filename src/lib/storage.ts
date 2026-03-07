@@ -1,11 +1,14 @@
 import {
   users, stores, orders, orderChecklists, pushSubscriptions, appSettings,
+  trackingHistory, driverLocations,
   type User, type InsertUser, type Store, type InsertStore,
   type Order, type InsertOrder, type OrderChecklist, type InsertOrderChecklist,
-  type PushSubscription, type InsertPushSubscription
+  type PushSubscription, type InsertPushSubscription,
+  type TrackingHistory, type InsertTrackingHistory,
+  type DriverLocation, type InsertDriverLocation,
 } from "./schema";
 import { db } from "./db";
-import { eq, desc, and, gte, lte, lt, sql, count, or } from "drizzle-orm";
+import { eq, desc, and, gte, lte, lt, sql, count, or, asc } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
@@ -41,11 +44,20 @@ export interface IStorage {
 
   getSetting(key: string): Promise<string | null>;
   setSetting(key: string, value: string): Promise<void>;
+
+  // Tracking methods
+  getOrderByTrackingToken(token: string): Promise<Order | undefined>;
+  getTrackingHistory(orderId: number): Promise<TrackingHistory[]>;
+  createTrackingHistory(entry: InsertTrackingHistory): Promise<TrackingHistory>;
+  getDriverOrders(driverId: number): Promise<Order[]>;
+  createDriverLocation(location: InsertDriverLocation): Promise<DriverLocation>;
+  getLatestDriverLocation(driverId: number): Promise<DriverLocation | undefined>;
 }
 
 export interface OrderFilters {
   status?: string;
   storeId?: number;
+  driverId?: number;
   deliveryMode?: string;
   dateFrom?: Date;
   dateTo?: Date;
@@ -159,6 +171,9 @@ export class DatabaseStorage implements IStorage {
     }
     if (filters?.storeId) {
       conditions.push(eq(orders.assignedStoreId, filters.storeId));
+    }
+    if (filters?.driverId) {
+      conditions.push(eq(orders.assignedDriverId, filters.driverId));
     }
     if (filters?.deliveryMode) {
       conditions.push(eq(orders.deliveryMode, filters.deliveryMode));
@@ -472,6 +487,52 @@ export class DatabaseStorage implements IStorage {
     } else {
       await db.insert(appSettings).values({ key, value });
     }
+  }
+
+  // ── Tracking Methods ──────────────────────────────────────────────
+
+  async getOrderByTrackingToken(token: string): Promise<Order | undefined> {
+    const [order] = await db.select().from(orders).where(eq(orders.trackingToken, token));
+    return order || undefined;
+  }
+
+  async getTrackingHistory(orderId: number): Promise<TrackingHistory[]> {
+    return db.select().from(trackingHistory)
+      .where(eq(trackingHistory.orderId, orderId))
+      .orderBy(asc(trackingHistory.triggeredAt));
+  }
+
+  async createTrackingHistory(entry: InsertTrackingHistory): Promise<TrackingHistory> {
+    const [record] = await db.insert(trackingHistory).values(entry).returning();
+    return record;
+  }
+
+  async getDriverOrders(driverId: number): Promise<Order[]> {
+    return db.select().from(orders)
+      .where(
+        and(
+          eq(orders.assignedDriverId, driverId),
+          or(
+            eq(orders.status, "prep"),
+            eq(orders.status, "ready"),
+            eq(orders.status, "new"),
+          )
+        )
+      )
+      .orderBy(asc(sql`COALESCE(${orders.deliveryTime}, ${orders.pickupTime})`));
+  }
+
+  async createDriverLocation(location: InsertDriverLocation): Promise<DriverLocation> {
+    const [record] = await db.insert(driverLocations).values(location).returning();
+    return record;
+  }
+
+  async getLatestDriverLocation(driverId: number): Promise<DriverLocation | undefined> {
+    const [loc] = await db.select().from(driverLocations)
+      .where(eq(driverLocations.driverId, driverId))
+      .orderBy(desc(driverLocations.recordedAt))
+      .limit(1);
+    return loc || undefined;
   }
 }
 
