@@ -17,8 +17,8 @@ export const metadata: Metadata = {
     title: "WILDBIRD",
   },
   icons: {
-    icon: "/icons/icon-192.png",
-    apple: "/icons/icon-192.png",
+    icon: "/icons/wildbird-logo.png",
+    apple: "/icons/wildbird-logo.png",
   },
 };
 

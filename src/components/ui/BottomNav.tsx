@@ -9,30 +9,16 @@ import {
   Shield, Users, Check,
 } from "lucide-react";
 
-/** Inline WILDBIRD bird-feet logo SVG */
-function WildbirdLogo({ size = 28, className = "" }: { size?: number; className?: string }) {
+/** WILDBIRD bird-feet logo (actual brand asset) */
+function WildbirdLogo({ size = 28 }: { size?: number }) {
   return (
-    <svg
+    <img
+      src="/icons/wildbird-logo.png"
+      alt="WILDBIRD"
       width={size}
       height={size}
-      viewBox="0 0 120 120"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
-    >
-      {/* Left bird foot */}
-      <g stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M 38 65 C 36 55 34 45 30 35" strokeWidth="6" />
-        <path d="M 38 65 C 30 70 23 76 18 82" strokeWidth="5.5" />
-        <path d="M 38 65 C 46 63 52 58 56 52" strokeWidth="5.5" />
-      </g>
-      {/* Right bird foot */}
-      <g stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M 72 78 C 74 68 76 58 80 48" strokeWidth="6" />
-        <path d="M 72 78 C 64 72 58 66 54 60" strokeWidth="5.5" />
-        <path d="M 72 78 C 80 83 87 87 95 90" strokeWidth="5.5" />
-      </g>
-    </svg>
+      className="rounded"
+    />
   );
 }
 
