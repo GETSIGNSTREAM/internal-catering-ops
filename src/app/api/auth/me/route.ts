@@ -4,11 +4,28 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET() {
   const supabase = await createServerAuthClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json(null, { status: 401 });
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "No supabase user", authError: authError?.message }, { status: 401 });
+  }
 
   const caUser = await storage.getUserBySupabaseUid(user.id);
-  if (!caUser) return NextResponse.json(null, { status: 403 });
+  if (!caUser) {
+    // Debug: list all CA_users to see what supabase_uids exist
+    const allUsers = await storage.getUsers();
+    const userSummary = allUsers.map((u) => ({
+      id: u.id,
+      username: u.username,
+      supabaseUid: u.supabaseUid,
+      email: u.email,
+    }));
+    return NextResponse.json({
+      error: "No CA_user found for supabase_uid",
+      supabaseUid: user.id,
+      supabaseEmail: user.email,
+      existingUsers: userSummary,
+    }, { status: 403 });
+  }
 
   return NextResponse.json({
     id: String(caUser.id),
