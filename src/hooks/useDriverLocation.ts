@@ -14,7 +14,7 @@ interface UseDriverLocationOptions {
   /** For customer tracking page — location comes from tracking data */
   trackingLocation?: DriverLocationData | null;
   /** For admin page — poll driver location API by driver ID */
-  driverId?: number | null;
+  driverId?: string | null;
   /** For driver page — use own browser GPS position */
   ownLocation?: { lat: number; lng: number } | null;
   /** Polling interval in ms (default 10000) */

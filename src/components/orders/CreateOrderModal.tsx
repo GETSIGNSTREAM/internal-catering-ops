@@ -45,8 +45,8 @@ export default function CreateOrderModal({ onClose, onCreated, isAdmin = false }
   const [pickupTime, setPickupTime] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [assignedDriver, setAssignedDriver] = useState("");
-  const [assignedDriverId, setAssignedDriverId] = useState<number | null>(null);
-  const [driverUsers, setDriverUsers] = useState<{ id: number; name: string }[]>([]);
+  const [assignedDriverId, setAssignedDriverId] = useState<string | null>(null);
+  const [driverUsers, setDriverUsers] = useState<{ id: string; name: string }[]>([]);
   const [items, setItems] = useState<OrderItem[]>([{ name: "", quantity: 1 }]);
   const [itemsPending, setItemsPending] = useState(false);
   const [notes, setNotes] = useState("");
@@ -271,7 +271,7 @@ export default function CreateOrderModal({ onClose, onCreated, isAdmin = false }
                   <select
                     value={assignedDriverId || ""}
                     onChange={(e) => {
-                      const id = e.target.value ? parseInt(e.target.value) : null;
+                      const id = e.target.value || null;
                       setAssignedDriverId(id);
                       const driver = driverUsers.find((d) => d.id === id);
                       setAssignedDriver(driver?.name || "");

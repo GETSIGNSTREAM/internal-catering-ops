@@ -43,7 +43,7 @@ interface Order {
   pdfUrl?: string;
   labelsUrl?: string;
   assignedDriver?: string;
-  assignedDriverId?: number;
+  assignedDriverId?: string;
   photoProofUrl?: string;
   completedAt?: string;
   trackingToken?: string;

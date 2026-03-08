@@ -41,7 +41,7 @@ interface Order {
   labelsUrl?: string;
   assignedStoreId?: number;
   assignedDriver?: string;
-  assignedDriverId?: number;
+  assignedDriverId?: string;
   photoProofUrl?: string;
   completedAt?: string;
 }
@@ -72,8 +72,8 @@ export default function EditOrderModal({ order, onClose, onUpdated }: EditOrderM
   const [labelsUrl, setLabelsUrl] = useState(order.labelsUrl || "");
   const [assignedStoreId, setAssignedStoreId] = useState<number | null>(order.assignedStoreId || null);
   const [assignedDriver, setAssignedDriver] = useState(order.assignedDriver || "");
-  const [assignedDriverId, setAssignedDriverId] = useState<number | null>(order.assignedDriverId || null);
-  const [driverUsers, setDriverUsers] = useState<{ id: number; name: string }[]>([]);
+  const [assignedDriverId, setAssignedDriverId] = useState<string | null>(order.assignedDriverId || null);
+  const [driverUsers, setDriverUsers] = useState<{ id: string; name: string }[]>([]);
   const [stores, setStores] = useState<StoreItem[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadingLabels, setUploadingLabels] = useState(false);
@@ -242,7 +242,7 @@ export default function EditOrderModal({ order, onClose, onUpdated }: EditOrderM
                 <select
                   value={assignedDriverId || ""}
                   onChange={(e) => {
-                    const id = e.target.value ? parseInt(e.target.value) : null;
+                    const id = e.target.value || null;
                     setAssignedDriverId(id);
                     const driver = driverUsers.find((d) => d.id === id);
                     setAssignedDriver(driver?.name || "");

@@ -87,7 +87,7 @@ export default function TeamPage() {
       return;
     }
 
-    if (formRole !== "admin" && !formStoreId) {
+    if (formRole !== "admin" && formRole !== "driver" && !formStoreId) {
       setError("Please select a store for this team member");
       return;
     }
@@ -102,7 +102,7 @@ export default function TeamPage() {
           name: formName,
           email: formEmail,
           role: formRole,
-          storeId: formRole === "admin" ? null : formStoreId,
+          storeId: formRole === "admin" || formRole === "driver" ? null : formStoreId,
         }),
       });
 
@@ -127,7 +127,7 @@ export default function TeamPage() {
       return;
     }
 
-    if (formRole !== "admin" && !formStoreId) {
+    if (formRole !== "admin" && formRole !== "driver" && !formStoreId) {
       setError("Please select a store for this team member");
       return;
     }
@@ -139,7 +139,7 @@ export default function TeamPage() {
         name: formName,
         email: formEmail,
         role: formRole,
-        storeId: formRole === "admin" ? null : formStoreId,
+        storeId: formRole === "admin" || formRole === "driver" ? null : formStoreId,
       };
 
       const res = await fetch(`/api/users/${editingUser.id}`, {
