@@ -40,6 +40,40 @@ export interface ParsedOrderData {
   orderNumber?: string;
   orderSource?: string;
   utensilsRequested?: boolean;
+  /** Store ID detected from PDF header address (e.g., Foodja restaurant copy) */
+  assignedStoreId?: number;
+}
+
+// Wildbird store addresses — used to auto-detect which store a PDF order belongs to.
+// Matches street number from the restaurant header in PDFs (e.g., Foodja "Restaurant Copy").
+const STORE_ADDRESS_MAP: Array<{ storeId: number; streetNumber: string; keywords: string[] }> = [
+  { storeId: 4,  streetNumber: "10601", keywords: ["washington"] },
+  { storeId: 5,  streetNumber: "318",   keywords: ["la brea"] },
+  { storeId: 7,  streetNumber: "6374",  keywords: ["sunset"] },
+  { storeId: 8,  streetNumber: "816",   keywords: ["8th"] },
+  { storeId: 9,  streetNumber: "2333",  keywords: ["utah"] },
+  { storeId: 10, streetNumber: "10917", keywords: ["lindbrook"] },
+];
+
+/**
+ * Detect Wildbird store from PDF text by matching the restaurant address header.
+ * Foodja PDFs have the store address near the top (e.g., "6374 Sunset Boulevard").
+ */
+function detectStoreFromAddress(text: string): number | undefined {
+  // Only look at the first ~500 chars (header area) to avoid false matches
+  const header = text.substring(0, 500).toLowerCase();
+  for (const store of STORE_ADDRESS_MAP) {
+    if (header.includes(store.streetNumber)) {
+      return store.storeId;
+    }
+  }
+  // Fallback: check keywords in header
+  for (const store of STORE_ADDRESS_MAP) {
+    if (store.keywords.some((kw) => header.includes(kw))) {
+      return store.storeId;
+    }
+  }
+  return undefined;
 }
 
 type PdfFormat = "bruni" | "foodja" | "ezcater" | "catercow" | "sharebite" | "zerocater" | "unknown";
@@ -536,6 +570,7 @@ export async function parsePdf(buffer: Buffer): Promise<ParsedOrderData> {
     case "zerocater": parsed = parseGenericFormat(text); break;
     default: parsed = parseGenericFormat(text);
   }
-  const finalData = { ...parsed, orderSource: orderSource || parsed.orderSource };
+  const assignedStoreId = detectStoreFromAddress(text);
+  const finalData = { ...parsed, orderSource: orderSource || parsed.orderSource, assignedStoreId };
   return sanitizeParsedData(finalData);
 }

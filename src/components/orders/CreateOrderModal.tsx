@@ -33,6 +33,7 @@ interface ParsedOrderData {
   orderSource?: string;
   utensilsRequested?: boolean;
   pdfUrl?: string;
+  assignedStoreId?: number;
 }
 
 export default function CreateOrderModal({ onClose, onCreated, isAdmin = false }: CreateOrderModalProps) {
@@ -128,6 +129,7 @@ export default function CreateOrderModal({ onClose, onCreated, isAdmin = false }
         setItems(data.items.map((item) => ({ name: item.notes ? `${item.name} - ${item.notes}` : item.name, quantity: item.quantity })));
       }
       if (data.notes) setNotes(data.notes);
+      if (data.assignedStoreId) setAssignedStoreId(data.assignedStoreId);
       setPdfParsed(true);
       if (data.pdfUrl) setPdfUrl(data.pdfUrl);
     } catch (error: any) {
