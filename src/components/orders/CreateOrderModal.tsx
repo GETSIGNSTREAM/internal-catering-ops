@@ -180,10 +180,12 @@ export default function CreateOrderModal({ onClose, onCreated, isAdmin = false }
         }
         throw new Error(msg);
       }
+      // Success — close modal and refresh list before finally block
+      setLoading(false);
       onCreated();
+      return;
     } catch (error: any) {
       setUploadError(error.message || "Failed to create order");
-    } finally {
       setLoading(false);
     }
   };
