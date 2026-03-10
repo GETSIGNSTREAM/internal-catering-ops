@@ -134,7 +134,10 @@ export default function EditOrderModal({ order, onClose, onUpdated }: EditOrderM
     finally { setUploadingLabels(false); if (labelsInputRef.current) labelsInputRef.current.value = ""; }
   };
 
-  const handleViewPdf = (url: string) => { window.open(url, "_blank"); };
+  const handleViewPdf = (url: string) => {
+    const viewUrl = url.startsWith("/objects/") ? `/api${url}` : url;
+    window.open(viewUrl, "_blank");
+  };
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();

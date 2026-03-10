@@ -294,7 +294,9 @@ export default function OrderDetailPage() {
 
   const handleViewPdf = async (url: string, filename: string) => {
     try {
-      const response = await fetch(url);
+      // Stored paths are /objects/... but API route is at /api/objects/...
+      const fetchUrl = url.startsWith("/objects/") ? `/api${url}` : url;
+      const response = await fetch(fetchUrl);
       if (!response.ok) throw new Error("Failed to fetch PDF");
       const blob = await response.blob();
       const blobUrl = URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
