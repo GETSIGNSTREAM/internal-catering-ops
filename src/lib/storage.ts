@@ -25,6 +25,7 @@ export interface IStorage {
 
   getOrderChecklists(orderId: number): Promise<OrderChecklist[]>;
   createOrderChecklist(checklist: InsertOrderChecklist): Promise<OrderChecklist>;
+  createOrderChecklists(checklists: InsertOrderChecklist[]): Promise<OrderChecklist[]>;
   updateOrderChecklist(id: number, data: Partial<InsertOrderChecklist>): Promise<OrderChecklist | undefined>;
 
   getOrderStats(storeId?: number): Promise<OrderStats>;
@@ -252,6 +253,11 @@ export class DatabaseStorage implements IStorage {
   async createOrderChecklist(insertChecklist: InsertOrderChecklist): Promise<OrderChecklist> {
     const [checklist] = await db.insert(orderChecklists).values(insertChecklist).returning();
     return checklist;
+  }
+
+  async createOrderChecklists(insertChecklists: InsertOrderChecklist[]): Promise<OrderChecklist[]> {
+    if (insertChecklists.length === 0) return [];
+    return db.insert(orderChecklists).values(insertChecklists).returning();
   }
 
   async updateOrderChecklist(id: number, data: Partial<InsertOrderChecklist>): Promise<OrderChecklist | undefined> {

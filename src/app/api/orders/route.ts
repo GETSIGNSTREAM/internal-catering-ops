@@ -129,33 +129,30 @@ export async function POST(request: NextRequest) {
 
     const order = await storage.createOrder(orderData as any);
 
-    // Create initial tracking history entry
-    await storage.createTrackingHistory({
-      orderId: order.id,
-      milestone: "confirmed",
-      triggeredBy: auth.session.user.id,
-    });
-
-    // Create checklist tasks for this order
-    for (const task of ALL_CHECKLIST_TASKS) {
-      await storage.createOrderChecklist({
+    // Create tracking history + checklist tasks in parallel (single batch insert for checklists)
+    await Promise.all([
+      storage.createTrackingHistory({
         orderId: order.id,
-        taskName: task.taskName,
-        taskType: task.taskType,
-        forRole: task.forRole,
-        completed: false,
-      });
-    }
-
-    // Fire-and-forget integration calls (console.log placeholders for now)
-    console.log(`[Integration] Slack notify: New order #${order.orderNumber || order.id} created`);
-    console.log(`[Integration] Google Sheets append: Order #${order.orderNumber || order.id}`);
-    console.log(`[Integration] Email confirmation: ${order.customerEmail || "no email"}`);
-    console.log(`[Integration] Push notification: New order #${order.orderNumber || order.id}`);
+        milestone: "confirmed",
+        triggeredBy: auth.session.user.id,
+      }),
+      storage.createOrderChecklists(
+        ALL_CHECKLIST_TASKS.map((task) => ({
+          orderId: order.id,
+          taskName: task.taskName,
+          taskType: task.taskType,
+          forRole: task.forRole,
+          completed: false,
+        }))
+      ),
+    ]);
 
     return NextResponse.json(order, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating order:", error);
-    return NextResponse.json({ error: "Failed to create order" }, { status: 500 });
+    return NextResponse.json(
+      { error: `Failed to create order: ${error?.message || "Unknown error"}` },
+      { status: 500 }
+    );
   }
 }
