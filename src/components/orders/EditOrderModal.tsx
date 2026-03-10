@@ -87,7 +87,7 @@ export default function EditOrderModal({ order, onClose, onUpdated }: EditOrderM
     fetch("/api/drivers").then((r) => r.json()).then((data) => { if (Array.isArray(data)) setDriverUsers(data); }).catch(() => {});
   }, []);
 
-  const orderSources = ["eatwildbird.com", "ezcater", "foodja", "catercow", "sharebite", "zerocater", "relish"];
+  const orderSources = ["eatwildbird.com", "ezcater", "foodja", "catercow", "sharebite", "zerocater", "relish", "forkable"];
 
   useEffect(() => {
     const timeStr = order.deliveryMode === "delivery" ? order.deliveryTime : order.pickupTime;
