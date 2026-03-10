@@ -15,24 +15,38 @@ function AuthCallbackInner() {
       const redirectTo = searchParams.get("redirect") || "/orders";
       const supabase = createAuthClient();
 
-      // The Supabase client auto-detects hash fragments (#access_token=...)
-      // and exchanges them for a session via onAuthStateChange
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (session) {
-        router.replace(redirectTo);
-        return;
-      }
-
-      // If no session yet, wait briefly for the hash fragment to be processed
+      // Listen for auth state changes FIRST (before getSession triggers hash parsing)
       const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-        if (event === "SIGNED_IN" && session) {
+        if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && session) {
           subscription.unsubscribe();
           router.replace(redirectTo);
         }
       });
 
-      // Timeout: if no session after 5 seconds, redirect to login
+      // Check if there's a hash fragment with tokens (implicit flow)
+      // The Supabase client auto-detects #access_token=... in the URL
+      const hasHashToken = window.location.hash.includes("access_token");
+
+      if (hasHashToken) {
+        // Let onAuthStateChange handle it — Supabase client parses the hash automatically
+        // Set a timeout in case it fails
+        setTimeout(() => {
+          subscription.unsubscribe();
+          setStatus("Authentication failed. Redirecting to login...");
+          setTimeout(() => router.replace("/login?error=auth_failed"), 1500);
+        }, 8000);
+        return;
+      }
+
+      // No hash fragment — check if we already have a session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        subscription.unsubscribe();
+        router.replace(redirectTo);
+        return;
+      }
+
+      // No session and no hash — wait briefly then redirect to login
       setTimeout(() => {
         subscription.unsubscribe();
         setStatus("Authentication failed. Redirecting to login...");

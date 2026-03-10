@@ -30,7 +30,10 @@ function LoginForm() {
       const { error: otpError } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${window.location.origin}/api/auth/callback`,
+          // Redirect to client-side callback page (not the API route) so the
+          // hash-fragment token (#access_token=...) can be processed by the
+          // browser-side Supabase client — works regardless of browser context.
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       });
 
