@@ -15,43 +15,42 @@ function AuthCallbackInner() {
       const redirectTo = searchParams.get("redirect") || "/orders";
       const supabase = createAuthClient();
 
-      // Listen for auth state changes FIRST (before getSession triggers hash parsing)
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-        if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && session) {
-          subscription.unsubscribe();
+      // Parse hash fragment for implicit flow tokens (#access_token=...&refresh_token=...)
+      const hash = window.location.hash.substring(1); // strip leading #
+      const params = new URLSearchParams(hash);
+      const accessToken = params.get("access_token");
+      const refreshToken = params.get("refresh_token");
+
+      if (accessToken && refreshToken) {
+        // Explicitly set the session from hash fragment tokens
+        // (@supabase/ssr's createBrowserClient doesn't auto-parse hash fragments)
+        const { error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+
+        if (!error) {
+          // Clean the hash from the URL before navigating
+          window.history.replaceState(null, "", window.location.pathname);
           router.replace(redirectTo);
+          return;
         }
-      });
-
-      // Check if there's a hash fragment with tokens (implicit flow)
-      // The Supabase client auto-detects #access_token=... in the URL
-      const hasHashToken = window.location.hash.includes("access_token");
-
-      if (hasHashToken) {
-        // Let onAuthStateChange handle it — Supabase client parses the hash automatically
-        // Set a timeout in case it fails
-        setTimeout(() => {
-          subscription.unsubscribe();
-          setStatus("Authentication failed. Redirecting to login...");
-          setTimeout(() => router.replace("/login?error=auth_failed"), 1500);
-        }, 8000);
+        console.error("[Auth callback] setSession failed:", error.message);
+        setStatus("Authentication failed. Redirecting to login...");
+        setTimeout(() => router.replace("/login?error=auth_failed"), 1500);
         return;
       }
 
-      // No hash fragment — check if we already have a session
+      // No hash tokens — check if we already have a session
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        subscription.unsubscribe();
         router.replace(redirectTo);
         return;
       }
 
-      // No session and no hash — wait briefly then redirect to login
-      setTimeout(() => {
-        subscription.unsubscribe();
-        setStatus("Authentication failed. Redirecting to login...");
-        setTimeout(() => router.replace("/login?error=auth_failed"), 1500);
-      }, 5000);
+      // No session and no hash — redirect to login
+      setStatus("Authentication failed. Redirecting to login...");
+      setTimeout(() => router.replace("/login?error=auth_failed"), 2000);
     };
 
     handleAuth();
