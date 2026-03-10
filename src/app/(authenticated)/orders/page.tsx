@@ -12,6 +12,7 @@ import RoleSwitcher from "@/components/ui/RoleSwitcher";
 import { OrderListSkeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageTransition } from "@/components/ui/PageTransition";
+import DateRangePicker from "@/components/ui/DateRangePicker";
 
 interface Order {
   id: number;
@@ -256,29 +257,16 @@ export default function OrdersPage() {
           )}
         </div>
 
-        {dateFilter === "custom" && (
-          <div className="flex items-center gap-2 mb-3">
-            <div className="flex-1">
-              <label className="text-[10px] text-gray-400 uppercase font-bold mb-1 block">From</label>
-              <input
-                type="date"
-                value={customFrom}
-                onChange={(e) => setCustomFrom(e.target.value)}
-                className="w-full bg-dark-700 border border-dark-500 text-white px-3 py-2 rounded-xl text-sm outline-none focus:ring-2 focus:ring-chicken-primary"
-              />
-            </div>
-            <div className="flex-1">
-              <label className="text-[10px] text-gray-400 uppercase font-bold mb-1 block">To</label>
-              <input
-                type="date"
-                value={customTo}
-                onChange={(e) => setCustomTo(e.target.value)}
-                min={customFrom}
-                className="w-full bg-dark-700 border border-dark-500 text-white px-3 py-2 rounded-xl text-sm outline-none focus:ring-2 focus:ring-chicken-primary"
-              />
-            </div>
-          </div>
-        )}
+        <AnimatePresence>
+          {dateFilter === "custom" && (
+            <DateRangePicker
+              from={customFrom}
+              to={customTo}
+              onFromChange={setCustomFrom}
+              onToChange={setCustomTo}
+            />
+          )}
+        </AnimatePresence>
 
         <div className="grid grid-cols-4 gap-2 mb-1">
           <div className="bg-dark-700/50 p-2 rounded-lg border border-dark-600">
