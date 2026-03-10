@@ -9,6 +9,7 @@ interface DateRangePickerProps {
   to: string;   // YYYY-MM-DD
   onFromChange: (date: string) => void;
   onToChange: (date: string) => void;
+  onComplete?: () => void; // Called after both from and to are selected
 }
 
 const DAY_NAMES = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
@@ -52,7 +53,7 @@ function todayStr(): string {
   return new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
 }
 
-export default function DateRangePicker({ from, to, onFromChange, onToChange }: DateRangePickerProps) {
+export default function DateRangePicker({ from, to, onFromChange, onToChange, onComplete }: DateRangePickerProps) {
   // Parse the "from" date to initialize the calendar view
   const [fromParts] = useState(() => {
     const [y, m] = (from || todayStr()).split("-").map(Number);
@@ -102,6 +103,10 @@ export default function DateRangePicker({ from, to, onFromChange, onToChange }: 
       } else {
         onToChange(dateStr);
         setSelecting("from");
+        // Range is complete — notify parent after a brief moment
+        if (onComplete) {
+          setTimeout(onComplete, 400);
+        }
       }
     }
   };

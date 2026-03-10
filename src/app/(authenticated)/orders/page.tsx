@@ -89,6 +89,7 @@ export default function OrdersPage() {
   };
   const [customFrom, setCustomFrom] = useState(getLAToday);
   const [customTo, setCustomTo] = useState(() => getLADateOffset(7));
+  const [calendarOpen, setCalendarOpen] = useState(true);
 
   const isAdmin = effectiveRole === "admin";
 
@@ -245,7 +246,7 @@ export default function OrdersPage() {
         </div>
 
         <div className="flex items-center gap-2 mb-3">
-          <FilterSelect value={dateFilter} options={dateFilters} onChange={setDateFilter} icon={<Calendar size={14} className="text-gray-400" />} />
+          <FilterSelect value={dateFilter} options={dateFilters} onChange={(v) => { setDateFilter(v); if (v === "custom") setCalendarOpen(true); }} icon={<Calendar size={14} className="text-gray-400" />} />
           <FilterSelect value={statusFilter} options={statusFilters} onChange={setStatusFilter} icon={<ListFilter size={14} className="text-gray-400" />} />
           {isAdmin && stores.length > 0 && (
             <FilterSelect
@@ -257,13 +258,27 @@ export default function OrdersPage() {
           )}
         </div>
 
+        {dateFilter === "custom" && !calendarOpen && (
+          <button
+            onClick={() => setCalendarOpen(true)}
+            className="w-full flex items-center justify-between bg-dark-700 border border-dark-500 rounded-xl px-4 py-2.5 mb-3 active:scale-[0.98] transition-transform"
+          >
+            <span className="text-sm text-white font-medium">
+              {new Date(customFrom + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+              {" — "}
+              {new Date(customTo + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+            </span>
+            <Calendar size={14} className="text-gray-400" />
+          </button>
+        )}
         <AnimatePresence>
-          {dateFilter === "custom" && (
+          {dateFilter === "custom" && calendarOpen && (
             <DateRangePicker
               from={customFrom}
               to={customTo}
               onFromChange={setCustomFrom}
               onToChange={setCustomTo}
+              onComplete={() => setCalendarOpen(false)}
             />
           )}
         </AnimatePresence>
