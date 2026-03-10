@@ -1,10 +1,10 @@
 import { z } from "zod";
 
 export const CreateOrderSchema = z.object({
-  customerName: z.string().min(1, "Customer name is required").max(100),
-  customerEmail: z.string().email().max(100).optional().nullable(),
-  customerPhone: z.string().max(20).optional().nullable(),
-  organization: z.string().max(100).optional().nullable(),
+  customerName: z.string().min(1, "Customer name is required").max(200),
+  customerEmail: z.string().email().max(200).optional().nullable(),
+  customerPhone: z.string().max(50).optional().nullable(),
+  organization: z.string().max(300).optional().nullable(),
   items: z.array(z.object({
     name: z.string().min(1).max(500),
     quantity: z.number().int().positive().max(9999),
