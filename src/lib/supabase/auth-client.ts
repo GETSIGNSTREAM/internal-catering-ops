@@ -4,14 +4,8 @@ export function createAuthClient() {
   return createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      auth: {
-        // Use implicit flow so magic link tokens come as hash fragments (#access_token=...)
-        // instead of PKCE codes (?code=...). PKCE requires the code_verifier cookie from
-        // the original browser session, which is missing on mobile when the magic link
-        // opens in a different browser context (in-app browser, different tab).
-        flowType: "implicit",
-      },
-    },
+    // Use PKCE flow (default for @supabase/ssr). The magic link redirects to
+    // /api/auth/callback?code=... where the server exchanges the code for a session.
+    // The code_verifier is stored in cookies by @supabase/ssr automatically.
   );
 }

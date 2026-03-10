@@ -30,10 +30,9 @@ function LoginForm() {
       const { error: otpError } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          // Redirect to client-side callback page (not the API route) so the
-          // hash-fragment token (#access_token=...) can be processed by the
-          // browser-side Supabase client — works regardless of browser context.
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          // Redirect to server-side callback that exchanges the PKCE code for
+          // a session and sets cookies. Falls back to client-side if needed.
+          emailRedirectTo: `${window.location.origin}/api/auth/callback`,
         },
       });
 

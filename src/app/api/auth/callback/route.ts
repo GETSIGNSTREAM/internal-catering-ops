@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
+  const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   const redirectTo = searchParams.get("redirect") || "/orders";
 
@@ -28,32 +28,14 @@ export async function GET(request: NextRequest) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(new URL(redirectTo, request.url));
+      return NextResponse.redirect(new URL(redirectTo, origin));
     }
     console.error("[Auth callback] Code exchange failed:", error.message);
+    // Code exchange failed (e.g., missing code_verifier cookie on mobile).
+    // Redirect to login with error.
+    return NextResponse.redirect(new URL("/login?error=auth_failed", origin));
   }
 
-  // No code or code exchange failed — the token may be in the URL hash fragment
-  // (implicit flow: #access_token=...). Hash fragments are never sent to the server,
-  // so we can't redirect (302/303 strips the hash). Instead, return an HTML page
-  // that reads the hash client-side and forwards it to the client-side callback.
-  const html = `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Signing in...</title></head>
-<body>
-<script>
-  // Forward hash fragment to client-side callback that can process it
-  var hash = window.location.hash;
-  var dest = "/auth/callback";
-  if (hash) {
-    dest += hash;
-  } else {
-    dest += "?error=no_token";
-  }
-  window.location.replace(dest);
-</script>
-<p>Signing you in...</p>
-</body></html>`;
-  return new NextResponse(html, {
-    headers: { "Content-Type": "text/html" },
-  });
+  // No code param — redirect to login
+  return NextResponse.redirect(new URL("/login?error=no_code", origin));
 }
