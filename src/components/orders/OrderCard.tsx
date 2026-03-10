@@ -224,6 +224,9 @@ export default function OrderCard({ order, index = 0 }: OrderCardProps) {
             <div>
               <span className="text-[10px] text-gray-500 uppercase font-medium">
                 {isDelivery ? t("orders.delivery") : t("orders.pickup")}
+                {!isDelivery && order.storeName && (
+                  <span className="text-teal-400 ml-1">@ {order.storeName}</span>
+                )}
               </span>
               <div className="flex items-baseline gap-1.5">
                 {displayTime && <span className="text-sm text-chicken-primary font-semibold">{displayTime}</span>}

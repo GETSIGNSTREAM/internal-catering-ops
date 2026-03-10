@@ -47,6 +47,8 @@ export default function CreateOrderModal({ onClose, onCreated, isAdmin = false }
   const [assignedDriver, setAssignedDriver] = useState("");
   const [assignedDriverId, setAssignedDriverId] = useState<string | null>(null);
   const [driverUsers, setDriverUsers] = useState<{ id: string; name: string }[]>([]);
+  const [assignedStoreId, setAssignedStoreId] = useState<number | null>(null);
+  const [stores, setStores] = useState<{ id: number; name: string }[]>([]);
   const [items, setItems] = useState<OrderItem[]>([{ name: "", quantity: 1 }]);
   const [itemsPending, setItemsPending] = useState(false);
   const [notes, setNotes] = useState("");
@@ -63,13 +65,19 @@ export default function CreateOrderModal({ onClose, onCreated, isAdmin = false }
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch driver users for assignment dropdown
+  // Fetch drivers and stores for assignment dropdowns
   useEffect(() => {
     fetch("/api/drivers")
       .then((r) => r.json())
       .then((data) => { if (Array.isArray(data)) setDriverUsers(data); })
       .catch(() => {});
-  }, []);
+    if (isAdmin) {
+      fetch("/api/stores")
+        .then((r) => r.json())
+        .then((data) => { if (Array.isArray(data)) setStores(data); })
+        .catch(() => {});
+    }
+  }, [isAdmin]);
 
   const addItem = () => setItems([...items, { name: "", quantity: 1 }]);
 
@@ -165,6 +173,7 @@ export default function CreateOrderModal({ onClose, onCreated, isAdmin = false }
           orderSource: orderSource || null,
           utensilsRequested,
           numberOfGuests: numberOfGuests ? parseInt(numberOfGuests) : null,
+          assignedStoreId: assignedStoreId || null,
           pdfUrl: pdfUrl || null,
           status: "new",
         }),
@@ -267,6 +276,24 @@ export default function CreateOrderModal({ onClose, onCreated, isAdmin = false }
             </label>
             <input type="datetime-local" value={pickupTime} onChange={(e) => setPickupTime(e.target.value)} className="w-full bg-dark-700 text-white px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-chicken-primary" />
           </div>
+
+          {isAdmin && stores.length > 0 && (
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">
+                {deliveryMode === "pickup" ? "Pickup Store *" : "Assign Store"}
+              </label>
+              <select
+                value={assignedStoreId || ""}
+                onChange={(e) => setAssignedStoreId(e.target.value ? parseInt(e.target.value) : null)}
+                className="w-full bg-dark-700 text-white px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-chicken-primary"
+              >
+                <option value="">Select store...</option>
+                {stores.map((store) => (
+                  <option key={store.id} value={store.id}>{store.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {deliveryMode === "delivery" && (
             <>
