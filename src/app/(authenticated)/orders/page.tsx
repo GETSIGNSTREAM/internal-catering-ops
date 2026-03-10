@@ -79,6 +79,16 @@ export default function OrdersPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [serverStats, setServerStats] = useState<{ totalSales: number; nativeSales: number } | null>(null);
 
+  // Custom date range (YYYY-MM-DD strings in LA time)
+  const getLAToday = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
+  const getLADateOffset = (days: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    return d.toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
+  };
+  const [customFrom, setCustomFrom] = useState(getLAToday);
+  const [customTo, setCustomTo] = useState(() => getLADateOffset(7));
+
   const isAdmin = effectiveRole === "admin";
 
   // Load stores for the location filter (admin only)
@@ -115,13 +125,23 @@ export default function OrdersPage() {
           const { from, to } = getLADateRange(0, 7);
           params.append("fulfillmentDateFrom", from.toISOString());
           params.append("fulfillmentDateTo", to.toISOString());
+        } else if (dateFilter === "custom" && customFrom) {
+          const [fy, fm, fd] = customFrom.split("-").map(Number);
+          const from = getLAMidnightUTC(fy, fm, fd);
+          params.append("fulfillmentDateFrom", from.toISOString());
+          if (customTo) {
+            const [ty, tm, td] = customTo.split("-").map(Number);
+            // +1 day to make the "to" date inclusive (end of that day)
+            const to = getLAMidnightUTC(ty, tm, td + 1);
+            params.append("fulfillmentDateTo", to.toISOString());
+          }
         }
         if (statusFilter !== "all") params.append("status", statusFilter);
       }
       if (isAdmin && locationFilter !== "all") params.append("storeId", locationFilter);
       return params;
     },
-    [effectiveRole, dateFilter, statusFilter, isAdmin, locationFilter]
+    [effectiveRole, dateFilter, statusFilter, isAdmin, locationFilter, customFrom, customTo]
   );
 
   // Sync from Neon (Replit) in the background — runs once per page load
@@ -191,13 +211,14 @@ export default function OrdersPage() {
     } else {
       fetchOrders(false); // just fetch on filter changes
     }
-  }, [dateFilter, statusFilter, locationFilter, effectiveRole]);
+  }, [dateFilter, statusFilter, locationFilter, effectiveRole, customFrom, customTo]);
 
   const dateFilters = [
     { value: "week", label: "This Week" },
     { value: "today", label: t("orders.today") },
     { value: "tomorrow", label: t("orders.tomorrow") },
     { value: "all", label: t("orders.allDates") },
+    { value: "custom", label: "Custom Range" },
   ];
 
   const statusFilters = [
@@ -234,6 +255,30 @@ export default function OrdersPage() {
             />
           )}
         </div>
+
+        {dateFilter === "custom" && (
+          <div className="flex items-center gap-2 mb-3">
+            <div className="flex-1">
+              <label className="text-[10px] text-gray-400 uppercase font-bold mb-1 block">From</label>
+              <input
+                type="date"
+                value={customFrom}
+                onChange={(e) => setCustomFrom(e.target.value)}
+                className="w-full bg-dark-700 border border-dark-500 text-white px-3 py-2 rounded-xl text-sm outline-none focus:ring-2 focus:ring-chicken-primary"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="text-[10px] text-gray-400 uppercase font-bold mb-1 block">To</label>
+              <input
+                type="date"
+                value={customTo}
+                onChange={(e) => setCustomTo(e.target.value)}
+                min={customFrom}
+                className="w-full bg-dark-700 border border-dark-500 text-white px-3 py-2 rounded-xl text-sm outline-none focus:ring-2 focus:ring-chicken-primary"
+              />
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-4 gap-2 mb-1">
           <div className="bg-dark-700/50 p-2 rounded-lg border border-dark-600">
