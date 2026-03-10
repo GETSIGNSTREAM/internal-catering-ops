@@ -4,17 +4,51 @@ import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createAuthClient } from "@/lib/supabase/auth-client";
 
+type LoginMethod = "magic-link" | "password";
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const errorParam = searchParams.get("error");
 
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [method, setMethod] = useState<LoginMethod>("password");
   const [error, setError] = useState(
     errorParam === "auth_failed" ? "Authentication failed. Please try again." : "",
   );
   const [loading, setLoading] = useState(false);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
+
+  const handlePasswordLogin = async () => {
+    const supabase = createAuthClient();
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (signInError) {
+      setError(signInError.message);
+    } else {
+      router.replace("/orders");
+    }
+  };
+
+  const handleMagicLinkLogin = async () => {
+    const supabase = createAuthClient();
+    const { error: otpError } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/api/auth/callback`,
+      },
+    });
+
+    if (otpError) {
+      setError(otpError.message);
+    } else {
+      setMagicLinkSent(true);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,24 +56,18 @@ function LoginForm() {
       setError("Please enter your email");
       return;
     }
+    if (method === "password" && !password) {
+      setError("Please enter your password");
+      return;
+    }
     setError("");
     setLoading(true);
 
     try {
-      const supabase = createAuthClient();
-      const { error: otpError } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          // Redirect to server-side callback that exchanges the PKCE code for
-          // a session and sets cookies. Falls back to client-side if needed.
-          emailRedirectTo: `${window.location.origin}/api/auth/callback`,
-        },
-      });
-
-      if (otpError) {
-        setError(otpError.message);
+      if (method === "password") {
+        await handlePasswordLogin();
       } else {
-        setMagicLinkSent(true);
+        await handleMagicLinkLogin();
       }
     } catch {
       setError("An error occurred");
@@ -81,6 +109,17 @@ function LoginForm() {
         autoFocus
       />
 
+      {method === "password" && (
+        <input
+          type="password"
+          placeholder="Enter your password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="w-full bg-dark-700 text-white px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-chicken-primary text-center"
+          required
+        />
+      )}
+
       {error && (
         <p className="text-red-500 text-sm text-center">{error}</p>
       )}
@@ -90,12 +129,26 @@ function LoginForm() {
         disabled={loading}
         className="w-full bg-chicken-primary text-dark-900 font-semibold py-3 rounded-xl hover:bg-chicken-secondary transition-colors disabled:opacity-50"
       >
-        {loading ? "Sending link..." : "Send Sign-In Link"}
+        {loading
+          ? (method === "password" ? "Signing in..." : "Sending link...")
+          : (method === "password" ? "Sign In" : "Send Sign-In Link")
+        }
       </button>
 
-      <p className="text-gray-500 text-xs text-center">
-        We&apos;ll email you a magic link for passwordless sign-in.
-      </p>
+      <button
+        type="button"
+        onClick={() => {
+          setMethod(method === "password" ? "magic-link" : "password");
+          setError("");
+          setPassword("");
+        }}
+        className="w-full text-gray-500 text-xs text-center hover:text-gray-400 transition-colors"
+      >
+        {method === "password"
+          ? "Use magic link instead"
+          : "Use password instead"
+        }
+      </button>
     </form>
   );
 }
