@@ -44,6 +44,8 @@ interface Order {
   labelsUrl?: string;
   assignedDriver?: string;
   assignedDriverId?: string;
+  assignedStoreId?: number;
+  storeName?: string;
   photoProofUrl?: string;
   completedAt?: string;
   trackingToken?: string;
@@ -464,6 +466,14 @@ export default function OrderDetailPage() {
                 {order.deliveryMode === "delivery" ? t("orders.delivery") : t("orders.pickup")}
               </span>
             </div>
+            {order.storeName && (
+              <div className="flex justify-between">
+                <span className="text-gray-400">Store</span>
+                <span className="text-teal-400 font-medium flex items-center gap-1.5">
+                  <MapPin size={14} /> {order.storeName}
+                </span>
+              </div>
+            )}
             {order.deliveryMode === "delivery" ? (
               <>
                 <div className="flex justify-between">
