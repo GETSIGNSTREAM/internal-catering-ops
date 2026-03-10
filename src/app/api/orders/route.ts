@@ -105,8 +105,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const parsed = CreateOrderSchema.safeParse(body);
     if (!parsed.success) {
+      const fieldErrors = parsed.error.flatten().fieldErrors;
+      console.error("Order validation failed:", JSON.stringify(fieldErrors));
       return NextResponse.json(
-        { error: "Validation failed", details: parsed.error.flatten().fieldErrors },
+        { error: "Validation failed", details: fieldErrors },
         { status: 400 }
       );
     }
