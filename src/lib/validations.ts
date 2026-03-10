@@ -20,7 +20,7 @@ export const CreateOrderSchema = z.object({
   deliveryMode: z.enum(["pickup", "delivery"]).default("pickup"),
   notes: z.string().max(2000).optional().nullable(),
   utensilsRequested: z.boolean().optional().default(false),
-  numberOfGuests: z.number().int().positive().max(9999).optional().nullable(),
+  numberOfGuests: z.number().int().min(0).max(9999).optional().nullable(),
   assignedStoreId: z.number().int().positive().optional().nullable(),
   assignedGmId: z.string().optional().nullable(),
   assignedDriver: z.string().max(50).optional().nullable(),
