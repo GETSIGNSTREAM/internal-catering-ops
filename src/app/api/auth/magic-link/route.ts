@@ -36,12 +36,16 @@ export async function POST(request: NextRequest) {
 
     const supabaseAdmin = getAdminClient();
 
+    // Use custom domain as canonical origin (Vercel sets request.nextUrl.origin to the deploy URL)
+    const siteOrigin = process.env.NEXT_PUBLIC_SITE_URL || request.nextUrl.origin;
+    const defaultCallback = `${siteOrigin}/api/auth/callback`;
+
     // Generate a magic link for the user
     const { data, error } = await supabaseAdmin.auth.admin.generateLink({
       type: "magiclink",
       email,
       options: {
-        redirectTo: redirect || `${request.nextUrl.origin}/api/auth/callback`,
+        redirectTo: redirect || defaultCallback,
       },
     });
 
@@ -53,15 +57,14 @@ export async function POST(request: NextRequest) {
     }
 
     // The link properties contain the token — build the full callback URL
-    const callbackUrl = new URL("/api/auth/callback", request.nextUrl.origin);
     if (data.properties?.hashed_token) {
       // Use the verification URL from Supabase which includes the token
-      const verifyUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/verify?token=${data.properties.hashed_token}&type=magiclink&redirect_to=${encodeURIComponent(redirect || `${request.nextUrl.origin}/api/auth/callback`)}`;
+      const verifyUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/verify?token=${data.properties.hashed_token}&type=magiclink&redirect_to=${encodeURIComponent(redirect || defaultCallback)}`;
       return NextResponse.json({ url: verifyUrl });
     }
 
     // Fallback: return the action link directly
-    return NextResponse.json({ url: data.properties?.action_link || callbackUrl.toString() });
+    return NextResponse.json({ url: data.properties?.action_link || defaultCallback });
   } catch (error) {
     console.error("Magic link generation error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
