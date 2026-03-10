@@ -33,15 +33,27 @@ export async function GET(request: NextRequest) {
     console.error("[Auth callback] Code exchange failed:", error.message);
   }
 
-  // If no code or code exchange failed, redirect to client-side callback page
-  // which can handle hash-fragment tokens (mobile magic links often use implicit flow)
-  const clientCallbackUrl = new URL("/auth/callback", request.url);
-  if (redirectTo !== "/orders") {
-    clientCallbackUrl.searchParams.set("redirect", redirectTo);
+  // No code or code exchange failed — the token may be in the URL hash fragment
+  // (implicit flow: #access_token=...). Hash fragments are never sent to the server,
+  // so we can't redirect (302/303 strips the hash). Instead, return an HTML page
+  // that reads the hash client-side and forwards it to the client-side callback.
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Signing in...</title></head>
+<body>
+<script>
+  // Forward hash fragment to client-side callback that can process it
+  var hash = window.location.hash;
+  var dest = "/auth/callback";
+  if (hash) {
+    dest += hash;
+  } else {
+    dest += "?error=no_token";
   }
-  // Pass along any error info for debugging
-  if (code) {
-    clientCallbackUrl.searchParams.set("code_failed", "true");
-  }
-  return NextResponse.redirect(clientCallbackUrl);
+  window.location.replace(dest);
+</script>
+<p>Signing you in...</p>
+</body></html>`;
+  return new NextResponse(html, {
+    headers: { "Content-Type": "text/html" },
+  });
 }
