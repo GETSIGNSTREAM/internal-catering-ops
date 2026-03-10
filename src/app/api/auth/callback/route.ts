@@ -30,7 +30,18 @@ export async function GET(request: NextRequest) {
     if (!error) {
       return NextResponse.redirect(new URL(redirectTo, request.url));
     }
+    console.error("[Auth callback] Code exchange failed:", error.message);
   }
 
-  return NextResponse.redirect(new URL("/login?error=auth_failed", request.url));
+  // If no code or code exchange failed, redirect to client-side callback page
+  // which can handle hash-fragment tokens (mobile magic links often use implicit flow)
+  const clientCallbackUrl = new URL("/auth/callback", request.url);
+  if (redirectTo !== "/orders") {
+    clientCallbackUrl.searchParams.set("redirect", redirectTo);
+  }
+  // Pass along any error info for debugging
+  if (code) {
+    clientCallbackUrl.searchParams.set("code_failed", "true");
+  }
+  return NextResponse.redirect(clientCallbackUrl);
 }

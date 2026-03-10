@@ -67,6 +67,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!login|track|api/auth/callback|api/auth/magic-link|api/health|api/push/vapid-public-key|_next/static|_next/image|favicon.ico|manifest.json|icons|push-handler.js).*)",
+    "/((?!login|track|auth/callback|api/auth/callback|api/auth/magic-link|api/health|api/push/vapid-public-key|_next/static|_next/image|favicon.ico|manifest.json|icons|push-handler.js).*)",
   ],
 };
