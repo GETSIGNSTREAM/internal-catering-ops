@@ -138,7 +138,11 @@ export default function OrdersPage() {
             params.append("fulfillmentDateTo", to.toISOString());
           }
         }
-        if (statusFilter !== "all") params.append("status", statusFilter);
+        if (statusFilter === "pickup" || statusFilter === "delivery") {
+          params.append("deliveryMode", statusFilter);
+        } else if (statusFilter !== "all") {
+          params.append("status", statusFilter);
+        }
       }
       if (isAdmin && locationFilter !== "all") params.append("storeId", locationFilter);
       return params;
@@ -229,6 +233,8 @@ export default function OrdersPage() {
     { value: "prep", label: t("orders.status.prep") },
     { value: "ready", label: t("orders.status.ready") },
     { value: "delivered", label: t("orders.status.delivered") },
+    { value: "pickup", label: "Pickup" },
+    { value: "delivery", label: "Delivery" },
   ];
 
   return (
