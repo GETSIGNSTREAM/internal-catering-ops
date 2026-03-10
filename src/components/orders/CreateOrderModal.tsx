@@ -171,7 +171,14 @@ export default function CreateOrderModal({ onClose, onCreated, isAdmin = false }
       });
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({ error: "Failed to create order" }));
-        throw new Error(errorData.error || "Failed to create order");
+        let msg = errorData.error || "Failed to create order";
+        if (errorData.details) {
+          const fields = Object.entries(errorData.details)
+            .map(([k, v]) => `${k}: ${(v as string[]).join(", ")}`)
+            .join("; ");
+          if (fields) msg += ` (${fields})`;
+        }
+        throw new Error(msg);
       }
       onCreated();
     } catch (error: any) {
@@ -346,6 +353,10 @@ export default function CreateOrderModal({ onClose, onCreated, isAdmin = false }
             <label className="block text-sm text-gray-400 mb-1">Notes</label>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className="w-full bg-dark-700 text-white px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-chicken-primary resize-none" />
           </div>
+
+          {uploadError && !uploading && (
+            <p className="text-red-500 text-sm">{uploadError}</p>
+          )}
 
           <motion.button type="submit" disabled={loading || !customerName.trim() || (deliveryMode === "delivery" && !deliveryAddress.trim())} className="w-full bg-chicken-primary text-dark-900 font-semibold py-3 rounded-xl hover:bg-chicken-secondary transition-colors disabled:opacity-50" whileTap={{ scale: 0.98 }}>
             {loading ? "Creating..." : "Create Order"}

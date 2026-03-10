@@ -6,7 +6,7 @@ export const CreateOrderSchema = z.object({
   customerPhone: z.string().max(20).optional().nullable(),
   organization: z.string().max(100).optional().nullable(),
   items: z.array(z.object({
-    name: z.string().min(1).max(200),
+    name: z.string().min(1).max(500),
     quantity: z.number().int().positive().max(9999),
     notes: z.string().max(500).optional(),
   })).min(1, "At least one item is required"),
