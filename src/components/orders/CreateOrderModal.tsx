@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
-import { FileText, Store, Truck } from "lucide-react";
+import { FileText, Store, Tag, Truck } from "lucide-react";
 import { toDatetimeLocalPST, fromDatetimeLocalToPST, getPSTTimezoneLabel } from "@/utils/timezone";
 
 interface CreateOrderModalProps {
@@ -64,7 +64,10 @@ export default function CreateOrderModal({ onClose, onCreated, isAdmin = false }
   const [uploadError, setUploadError] = useState("");
   const [pdfParsed, setPdfParsed] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [labelsUrl, setLabelsUrl] = useState<string | null>(null);
+  const [uploadingLabels, setUploadingLabels] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const labelsInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch drivers and stores for assignment dropdowns
   useEffect(() => {
@@ -140,15 +143,26 @@ export default function CreateOrderModal({ onClose, onCreated, isAdmin = false }
     }
   };
 
+  const handleLabelsUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== "application/pdf") { setUploadError("Please upload a PDF file"); return; }
+    setUploadingLabels(true); setUploadError("");
+    try {
+      const formData = new FormData();
+      formData.append("pdf", file);
+      const res = await fetch("/api/orders/upload-labels", { method: "POST", body: formData });
+      if (!res.ok) { const errorData = await res.json(); throw new Error(errorData.error || "Failed to upload labels"); }
+      const data = await res.json();
+      if (data.labelsUrl) setLabelsUrl(data.labelsUrl);
+    } catch (err: any) { setUploadError(err.message || "Failed to upload labels"); }
+    finally { setUploadingLabels(false); if (labelsInputRef.current) labelsInputRef.current.value = ""; }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setUploadError("");
-    if (deliveryMode === "delivery" && !deliveryAddress.trim()) {
-      setUploadError("Delivery address is required for delivery orders");
-      setLoading(false);
-      return;
-    }
     const validItems = itemsPending ? [] : items.filter((item) => item.name.trim());
     try {
       const pickupDate = pickupTime ? fromDatetimeLocalToPST(pickupTime) : null;
@@ -170,6 +184,7 @@ export default function CreateOrderModal({ onClose, onCreated, isAdmin = false }
           assignedDriver: deliveryMode === "delivery" && assignedDriver ? assignedDriver : null,
           assignedDriverId: deliveryMode === "delivery" && assignedDriverId ? assignedDriverId : null,
           items: validItems,
+          menuTbd: itemsPending || validItems.length === 0,
           notes: notes || null,
           totalAmount: totalAmount ? Math.round(parseFloat(totalAmount) * 100) : null,
           orderSource: orderSource || null,
@@ -177,6 +192,7 @@ export default function CreateOrderModal({ onClose, onCreated, isAdmin = false }
           numberOfGuests: numberOfGuests ? parseInt(numberOfGuests) : null,
           assignedStoreId: assignedStoreId || null,
           pdfUrl: pdfUrl || null,
+          labelsUrl: labelsUrl || null,
           status: "new",
         }),
       });
@@ -240,8 +256,8 @@ export default function CreateOrderModal({ onClose, onCreated, isAdmin = false }
           </div>
 
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Customer Name *</label>
-            <input type="text" value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="w-full bg-dark-700 text-white px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-chicken-primary" required />
+            <label className="block text-sm text-gray-400 mb-1">Customer Name</label>
+            <input type="text" value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Optional — can add later" className="w-full bg-dark-700 text-white px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-chicken-primary" />
           </div>
 
           <div>
@@ -385,11 +401,27 @@ export default function CreateOrderModal({ onClose, onCreated, isAdmin = false }
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className="w-full bg-dark-700 text-white px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-chicken-primary resize-none" />
           </div>
 
+          <div className="bg-dark-700 rounded-xl p-4">
+            <label className="block text-sm text-gray-400 mb-2">Labels PDF</label>
+            {labelsUrl ? (
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-2 text-green-400 text-sm"><Tag size={16} /> Labels uploaded</span>
+                <label htmlFor="labels-upload" className="text-xs text-gray-400 hover:text-white cursor-pointer">Replace</label>
+              </div>
+            ) : null}
+            <input ref={labelsInputRef} type="file" accept="application/pdf" onChange={handleLabelsUpload} className="hidden" id="labels-upload" />
+            {!labelsUrl && (
+              <label htmlFor="labels-upload" className={`flex items-center justify-center gap-2 w-full py-3 rounded-xl font-medium cursor-pointer transition-colors ${uploadingLabels ? "bg-dark-600 text-gray-400" : "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"}`}>
+                {uploadingLabels ? <><span className="animate-spin">&#9203;</span> Uploading...</> : <span className="flex items-center gap-2"><Tag size={18} /> Upload Labels PDF</span>}
+              </label>
+            )}
+          </div>
+
           {uploadError && !uploading && (
             <p className="text-red-500 text-sm">{uploadError}</p>
           )}
 
-          <motion.button type="submit" disabled={loading || !customerName.trim() || (deliveryMode === "delivery" && !deliveryAddress.trim())} className="w-full bg-chicken-primary text-dark-900 font-semibold py-3 rounded-xl hover:bg-chicken-secondary transition-colors disabled:opacity-50" whileTap={{ scale: 0.98 }}>
+          <motion.button type="submit" disabled={loading} className="w-full bg-chicken-primary text-dark-900 font-semibold py-3 rounded-xl hover:bg-chicken-secondary transition-colors disabled:opacity-50" whileTap={{ scale: 0.98 }}>
             {loading ? "Creating..." : "Create Order"}
           </motion.button>
         </form>

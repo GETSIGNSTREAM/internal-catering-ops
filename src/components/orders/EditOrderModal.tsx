@@ -329,7 +329,7 @@ export default function EditOrderModal({ order, onClose, onUpdated }: EditOrderM
             )}
           </div>
 
-          <motion.button type="button" onClick={handleSubmit} disabled={loading || !customerName.trim()} className="w-full bg-chicken-primary text-dark-900 font-semibold py-3 rounded-xl hover:bg-chicken-secondary transition-colors disabled:opacity-50" whileTap={{ scale: 0.98 }}>
+          <motion.button type="button" onClick={handleSubmit} disabled={loading} className="w-full bg-chicken-primary text-dark-900 font-semibold py-3 rounded-xl hover:bg-chicken-secondary transition-colors disabled:opacity-50" whileTap={{ scale: 0.98 }}>
             {loading ? "Saving..." : "Save Changes"}
           </motion.button>
         </form>
